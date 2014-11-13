@@ -33,6 +33,7 @@ LOCAL_SRC_FILES:= 	       \
 #
 
 LOCAL_SHARED_LIBRARIES += libcutils libutils liblog libGLES_trace
+
 LOCAL_MODULE:= libEGL
 LOCAL_LDFLAGS += -Wl,--exclude-libs=ALL
 LOCAL_SHARED_LIBRARIES += libdl
@@ -59,6 +60,9 @@ ifneq ($(MAX_EGL_CACHE_SIZE),)
   LOCAL_CFLAGS += -DMAX_EGL_CACHE_SIZE=$(MAX_EGL_CACHE_SIZE)
 endif
 
+ifeq ($(strip $(TARGET_BOARD_PLATFORM)),rk3288)
+	LOCAL_CFLAGS += -DUSE_IN_RK3288
+endif
 LOCAL_REQUIRED_MODULES := $(egl.cfg_config_module)
 egl.cfg_config_module :=
 
@@ -76,6 +80,7 @@ LOCAL_SRC_FILES:= 		\
 
 LOCAL_CLANG := false
 LOCAL_SHARED_LIBRARIES += libcutils liblog libEGL
+
 LOCAL_MODULE:= libGLESv1_CM
 
 LOCAL_SHARED_LIBRARIES += libdl
@@ -104,6 +109,7 @@ LOCAL_SRC_FILES:= 		\
 
 LOCAL_CLANG := false
 LOCAL_SHARED_LIBRARIES += libcutils libutils liblog libEGL
+
 LOCAL_MODULE:= libGLESv2
 
 LOCAL_SHARED_LIBRARIES += libdl
@@ -138,6 +144,7 @@ LOCAL_SRC_FILES:= 		\
 	ETC1/etc1.cpp 	\
 #
 
+
 LOCAL_MODULE:= libETC1
 
 include $(BUILD_HOST_STATIC_LIBRARY)
@@ -151,6 +158,7 @@ include $(CLEAR_VARS)
 LOCAL_SRC_FILES:= 		\
 	ETC1/etc1.cpp 	\
 #
+
 
 LOCAL_MODULE:= libETC1
 

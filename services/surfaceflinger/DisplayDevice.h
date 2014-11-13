@@ -81,7 +81,8 @@ public:
             const wp<IBinder>& displayToken,
             const sp<DisplaySurface>& displaySurface,
             const sp<IGraphicBufferProducer>& producer,
-            EGLConfig config);
+            EGLConfig config,
+            int hardwareOrientation);
 
     ~DisplayDevice();
 
@@ -114,8 +115,11 @@ public:
     void                    setProjection(int orientation, const Rect& viewport, const Rect& frame);
 
     int                     getOrientation() const { return mOrientation; }
+    int                     getHardwareRotation() const { return mOrientation; };
     uint32_t                getOrientationTransform() const;
     const Transform&        getTransform() const { return mGlobalTransform; }
+    const Transform&        getTransform(bool shouldTransform) const { return shouldTransform ? mGlobalTransform : mRealGlobalTransform; }
+    const Transform&        getRealTransform() const { return mRealGlobalTransform; }
     const Rect              getViewport() const { return mViewport; }
     const Rect              getFrame() const { return mFrame; }
     const Rect&             getScissor() const { return mScissor; }
@@ -132,6 +136,7 @@ public:
     status_t prepareFrame(const HWComposer& hwc) const;
 
     void swapBuffers(HWComposer& hwc) const;
+    void hwcSwapBuffers() const;
     status_t compositionComplete() const;
 
     // called after h/w composer has completed its set() call
@@ -214,6 +219,7 @@ private:
 
     uint32_t mLayerStack;
     int mOrientation;
+    int mClientOrientation;
     // user-provided visible area of the layer stack
     Rect mViewport;
     // user-provided rectangle where mViewport gets mapped to
@@ -221,11 +227,13 @@ private:
     // pre-computed scissor to apply to the display
     Rect mScissor;
     Transform mGlobalTransform;
+    Transform mRealGlobalTransform;
     bool mNeedsFiltering;
     // Current power mode
     int mPowerMode;
     // Current active config
     int mActiveConfig;
+	int mHardwareOrientation;
 };
 
 }; // namespace android

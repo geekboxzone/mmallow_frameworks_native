@@ -78,6 +78,17 @@ enum {
     eDisplayTransactionNeeded = 0x04,
     eTransactionMask          = 0x07
 };
+enum
+{
+    /* NOTE: These enums are unknown to Android.
+     * Android only checks against HWC_FRAMEBUFFER.
+     * This layer is to be drawn into the framebuffer by hwc blitter */
+    //HWC_TOWIN0 = 0x10,
+    //HWC_TOWIN1,
+    HWC_BLITTER = 100,
+    HWC_DIM,
+    HWC_CLEAR_HOLE
+};
 
 class SurfaceFlinger : public BnSurfaceComposer,
                        private IBinder::DeathRecipient,
@@ -125,6 +136,7 @@ public:
     // is received
     // TODO: this should be made accessible only to MessageQueue
     void onMessageReceived(int32_t what);
+    void debugShowFPS() const;
 
     // for debugging only
     // TODO: this should be made accessible only to HWComposer
@@ -134,6 +146,13 @@ public:
         return *mRenderEngine;
     }
 
+    int mHardwareOrientation;
+    int mUseLcdcComposer;
+	Mutex  mCaptureScreenLock;
+    // Get hardware orientation
+    int getHardwareOrientation() const { return mHardwareOrientation; }
+    bool orientationSwap() const { return mHardwareOrientation % 2; }
+    bool ReleaseOldBuffer(void);    //rk : for lcdc composer
 private:
     friend class Client;
     friend class DisplayEventConnection;
@@ -475,6 +494,7 @@ private:
     bool mBootFinished;
     bool mForceFullDamage;
 
+    int mWfdOptimize;
     // these are thread safe
     mutable MessageQueue mEventQueue;
     FrameTracker mAnimFrameTracker;
@@ -492,12 +512,12 @@ private:
     /* ------------------------------------------------------------------------
      * Feature prototyping
      */
-
-    Daltonizer mDaltonizer;
-    bool mDaltonize;
-
     mat4 mColorMatrix;
     bool mHasColorMatrix;
+    Daltonizer mDaltonizer;
+    bool mDaltonize;
+    int mDebugFPS;
+
 
     // Static screen stats
     bool mHasPoweredOff;
@@ -505,6 +525,9 @@ private:
     nsecs_t mFrameBuckets[NUM_BUCKETS];
     nsecs_t mTotalTime;
     nsecs_t mLastSwapTime;
+    // add by rk for workwround some display issue.
+    int mSkipFlag;
+    int mDelayFlag;
 };
 
 }; // namespace android

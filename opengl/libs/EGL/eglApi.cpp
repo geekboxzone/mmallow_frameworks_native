@@ -144,6 +144,12 @@ static const extention_map_t sExtensionMap[] = {
             (__eglMustCastToProperFunctionPointerType)&eglCreateSyncKHR },
     { "eglDestroySyncKHR",
             (__eglMustCastToProperFunctionPointerType)&eglDestroySyncKHR },
+	{ "eglGetRenderBufferANDROID",
+            (__eglMustCastToProperFunctionPointerType)&eglGetRenderBufferANDROID }, 
+    { "eglRenderBufferModifiedANDROID",
+            (__eglMustCastToProperFunctionPointerType)&eglRenderBufferModifiedANDROID },
+    { "eglSetImplementationAndroid",
+            (__eglMustCastToProperFunctionPointerType)&eglSetImplementationAndroid },
     { "eglClientWaitSyncKHR",
             (__eglMustCastToProperFunctionPointerType)&eglClientWaitSyncKHR },
     { "eglSignalSyncKHR",
@@ -244,6 +250,9 @@ static inline void clearError() { egl_tls_t::clearError(); }
 static inline EGLContext getContext() { return egl_tls_t::getContext(); }
 
 // ----------------------------------------------------------------------------
+#ifdef USE_IN_RK3288
+static int gUnNeedSwap = 0;
+#endif
 
 EGLDisplay eglGetDisplay(EGLNativeDisplayType display)
 {
@@ -1081,6 +1090,12 @@ EGLBoolean eglSwapBuffersWithDamageKHR(EGLDisplay dpy, EGLSurface draw,
     ATRACE_CALL();
     clearError();
 
+#ifdef USE_IN_RK3288
+    if(gUnNeedSwap) {
+        gUnNeedSwap = 0;
+        return EGL_TRUE;
+    }
+#endif
     const egl_display_ptr dp = validate_display(dpy);
     if (!dp) return EGL_FALSE;
 
@@ -1785,11 +1800,42 @@ EGLint eglWaitSyncKHR(EGLDisplay dpy, EGLSyncKHR sync, EGLint flags) {
 // ----------------------------------------------------------------------------
 // ANDROID extensions
 // ----------------------------------------------------------------------------
-
-EGLint eglDupNativeFenceFDANDROID(EGLDisplay dpy, EGLSyncKHR sync)
+EGLClientBuffer eglGetRenderBufferANDROID(EGLDisplay dpy, EGLSurface draw)
 {
     clearError();
 
+    egl_display_ptr   const dp = get_display(dpy);
+    egl_surface_t const * const s = get_surface(draw);
+    if (s->cnx->egl.eglGetRenderBufferANDROID) {
+	        return s->cnx->egl.eglGetRenderBufferANDROID(
+		                dp->disp.dpy, s->surface);		                  
+	    }
+	    return setError(EGL_BAD_DISPLAY, (EGLClientBuffer*)0);
+}
+EGLBoolean eglRenderBufferModifiedANDROID(EGLDisplay dpy, EGLSurface draw){
+    clearError();
+#ifdef USE_IN_RK3288
+    dpy = dpy;
+    draw = draw;
+    gUnNeedSwap = 1;
+#else
+    egl_display_ptr  const dp = get_display(dpy);
+    egl_surface_t const * const s = get_surface(draw);
+    if (s->cnx->egl.eglGetRenderBufferANDROID) {
+            return s->cnx->egl.eglRenderBufferModifiedANDROID(
+                        dp->disp.dpy, s->surface);
+    }
+#endif
+    return EGL_TRUE;
+}
+void eglSetImplementationAndroid(EGLBoolean impl)
+{
+    impl = impl;
+}
+EGLint eglDupNativeFenceFDANDROID(EGLDisplay dpy, EGLSyncKHR sync)
+{ 
+    clearError();
+  
     const egl_display_ptr dp = validate_display(dpy);
     if (!dp) return EGL_NO_NATIVE_FENCE_FD_ANDROID;
 

@@ -21,6 +21,7 @@
 #include <sys/types.h>
 
 #include <hardware/hwcomposer_defs.h>
+#include <hardware/hwcomposer.h>
 
 #include <ui/Fence.h>
 
@@ -96,8 +97,10 @@ public:
 
     // commits the list
     status_t commit();
+    status_t layerRecover();
+    status_t setSkipFrame(  uint32_t skipflag ) ;
 
-    // set power mode
+	status_t videoCopyBit(hwc_layer_1_t* hwcLayer, int flag);
     status_t setPowerMode(int disp, int mode);
 
     // set active config
@@ -117,9 +120,13 @@ public:
     // does this display have layers handled by GLES
     bool hasGlesComposition(int32_t id) const;
 
+    bool hasLcdComposition(int32_t id) const;
     // get the releaseFence file descriptor for a display's framebuffer layer.
     // the release fence is only valid after commit()
     sp<Fence> getAndResetReleaseFence(int32_t id);
+#ifdef TARGET_BOARD_PLATFORM_RK30XXB
+    status_t fbs_post(void);
+#endif
 
     // needed forward declarations
     class LayerListIterator;
@@ -160,12 +167,14 @@ public:
         virtual int32_t getCompositionType() const = 0;
         virtual uint32_t getHints() const = 0;
         virtual sp<Fence> getAndResetReleaseFence() = 0;
+        virtual hwc_layer_1_t* gethwcLayer() = 0;
         virtual void setDefaultState() = 0;
         virtual void setSkip(bool skip) = 0;
         virtual void setIsCursorLayerHint(bool isCursor = true) = 0;
         virtual void setBlending(uint32_t blending) = 0;
         virtual void setTransform(uint32_t transform) = 0;
         virtual void setFrame(const Rect& frame) = 0;
+        virtual void setRealTransform(uint32_t realtransform) = 0;
         virtual void setCrop(const FloatRect& crop) = 0;
         virtual void setVisibleRegionScreen(const Region& reg) = 0;
         virtual void setSurfaceDamage(const Region& reg) = 0;
@@ -174,6 +183,7 @@ public:
         virtual void setAcquireFenceFd(int fenceFd) = 0;
         virtual void setPlaneAlpha(uint8_t alpha) = 0;
         virtual void onDisplayed() = 0;
+		virtual void setLayername( const char *layername) = 0;
     };
 
     /*
@@ -333,6 +343,7 @@ private:
         bool connected;
         bool hasFbComp;
         bool hasOvComp;
+        bool haslcdComp;
         size_t capacity;
         hwc_display_contents_1* list;
         hwc_layer_1* framebufferTarget;

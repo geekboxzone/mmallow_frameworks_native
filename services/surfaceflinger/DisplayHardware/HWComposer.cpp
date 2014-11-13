@@ -113,8 +113,8 @@ HWComposer::HWComposer(
         // close FB HAL if we don't needed it.
         // FIXME: this is temporary until we're not forced to open FB HAL
         // before HWC.
-        framebuffer_close(mFbDev);
-        mFbDev = NULL;
+       // framebuffer_close(mFbDev);
+      //  mFbDev = NULL;
     }
 
     // If we have no HWC, or a pre-1.1 HWC, an FB dev is mandatory.
@@ -169,7 +169,7 @@ HWComposer::HWComposer(
                 "should only have fbdev if no hwc or hwc is 1.0");
 
         DisplayData& disp(mDisplayData[HWC_DISPLAY_PRIMARY]);
-        disp.connected = true;
+        disp.connected = true;   
         disp.format = mFbDev->format;
         DisplayConfig config = DisplayConfig();
         config.width = mFbDev->width;
@@ -568,6 +568,7 @@ status_t HWComposer::createWorkList(int32_t id, size_t numLayers) {
                     + numLayers * sizeof(hwc_layer_1_t);
             free(disp.list);
             disp.list = (hwc_display_contents_1_t*)malloc(size);
+            memset(disp.list, 0, size);
             disp.capacity = numLayers;
         }
         if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_1)) {
@@ -634,6 +635,15 @@ status_t HWComposer::setFramebufferTarget(int32_t id,
     return NO_ERROR;
 }
 
+bool gTimeIsUp = false;
+sp<SurfaceFlinger> gFlinger = NULL;
+void timer_handler(int sig) {
+    if(sig == SIGALRM) {
+        gFlinger->repaintEverything();
+        gTimeIsUp = true;
+        ALOGV("  time up, send a refresh msg!");
+    }
+}
 status_t HWComposer::prepare() {
     Mutex::Autolock _l(mDisplayLock);
     for (size_t i=0 ; i<mNumDisplays ; i++) {
@@ -668,7 +678,76 @@ status_t HWComposer::prepare() {
 
     int err = mHwc->prepare(mHwc, mNumDisplays, mLists);
     ALOGE_IF(err, "HWComposer: prepare failed (%s)", strerror(-err));
+#ifdef USE_LCDC_COMPOSER
+    if(true)
+#else
+    if(mFlinger->mUseLcdcComposer)
+#endif
+    {
+        DisplayData& disp(mDisplayData[0]);
+        if (disp.list) {
+            bool NeedRepaint = false;
+            unsigned int TotalSize = 0;
+            int OnlyTopUpdate = 0;
+            const DisplayConfig& currentConfig = disp.configs[disp.currentConfig];
+            struct itimerval tv = {{0,0},{0,0}};
 
+            if (gFlinger != mFlinger) {
+                gFlinger = mFlinger;
+                signal(SIGALRM, timer_handler);
+            }
+            for (size_t i=0 ; i<disp.list->numHwLayers ; i++) {
+                hwc_layer_1_t& l = disp.list->hwLayers[i];
+                hwc_rect_t const * rt = l.visibleRegionScreen.rects;
+				if (rt == NULL)
+				{
+				  return 0;
+				}
+                TotalSize += (rt->right - rt->left) * (rt->bottom - rt->top);
+                if ( l.compositionType == HWC_OVERLAY ||
+                     l.compositionType == HWC_LCDC )
+                {
+                    NeedRepaint = true;
+                }
+                if (l.bufferUpdate) {
+                    l.bufferUpdate = 0;
+                    bool IsSmallTop = !strcmp("StatusBar", l.LayerName);
+                    if(IsSmallTop) {
+                     
+                        unsigned int size = (rt->right - rt->left) * (rt->bottom - rt->top);
+                        IsSmallTop = (size < ((currentConfig.width * currentConfig.height)/4));
+                    }
+                    OnlyTopUpdate = (IsSmallTop && 0==OnlyTopUpdate) ? 1 : -1;
+                }
+            }
+            if (NeedRepaint) {
+                if(TotalSize < ((currentConfig.width * currentConfig.height * 5)/4)) {
+                    NeedRepaint = false;
+                }
+            }
+            if (NeedRepaint) {
+                if (gTimeIsUp || 1==OnlyTopUpdate) {
+                    if (gTimeIsUp)   gTimeIsUp = false;
+                    ALOGV("close timer & go gpu composer!");
+                    tv.it_value.tv_usec = 0;
+                    setitimer(ITIMER_REAL, &tv, NULL);
+                    hwc_layer_1_t& l = disp.list->hwLayers[0];
+                    l.flags |= HWC_SKIP_LAYER;
+                    mHwc->prepare(mHwc, mNumDisplays, mLists);
+                    l.flags &= ~HWC_SKIP_LAYER;
+                } else {
+                    tv.it_value.tv_usec = 500*1000;
+                    tv.it_value.tv_sec = 2;
+                    setitimer(ITIMER_REAL, &tv, NULL);
+                    ALOGV("reset timer!");
+                }
+            } else {
+                tv.it_value.tv_usec = 0;
+                setitimer(ITIMER_REAL, &tv, NULL);
+                ALOGV("close timer!");
+            }
+        }
+    }
     if (err == NO_ERROR) {
         // here we're just making sure that "skip" layers are set
         // to HWC_FRAMEBUFFER and we're also counting how many layers
@@ -681,6 +760,7 @@ status_t HWComposer::prepare() {
             DisplayData& disp(mDisplayData[i]);
             disp.hasFbComp = false;
             disp.hasOvComp = false;
+            disp.haslcdComp = false;
             if (disp.list) {
                 for (size_t i=0 ; i<disp.list->numHwLayers ; i++) {
                     hwc_layer_1_t& l = disp.list->hwLayers[i];
@@ -689,7 +769,7 @@ status_t HWComposer::prepare() {
                     //        i, l.compositionType, l.handle);
 
                     if (l.flags & HWC_SKIP_LAYER) {
-                        l.compositionType = HWC_FRAMEBUFFER;
+                       // l.compositionType = HWC_FRAMEBUFFER;
                     }
                     if (l.compositionType == HWC_FRAMEBUFFER) {
                         disp.hasFbComp = true;
@@ -697,8 +777,11 @@ status_t HWComposer::prepare() {
                     if (l.compositionType == HWC_OVERLAY) {
                         disp.hasOvComp = true;
                     }
-                    if (l.compositionType == HWC_CURSOR_OVERLAY) {
+                    if ( (l.compositionType == HWC_TOWIN0 || l.compositionType == HWC_TOWIN1) )
+                    {
+                        if( mFlinger->mUseLcdcComposer)
                         disp.hasOvComp = true;
+                        disp.haslcdComp = true;
                     }
                 }
                 if (disp.list->numHwLayers == (disp.framebufferTarget ? 1 : 0)) {
@@ -724,6 +807,11 @@ bool HWComposer::hasGlesComposition(int32_t id) const {
     return mDisplayData[id].hasFbComp;
 }
 
+bool HWComposer::hasLcdComposition(int32_t id) const {
+    if (uint32_t(id)>31 || !mAllocatedDisplayIDs.hasBit(id))
+        return false;
+    return mDisplayData[id].haslcdComp;
+}
 sp<Fence> HWComposer::getAndResetReleaseFence(int32_t id) {
     if (uint32_t(id)>31 || !mAllocatedDisplayIDs.hasBit(id))
         return Fence::NO_FENCE;
@@ -738,6 +826,44 @@ sp<Fence> HWComposer::getAndResetReleaseFence(int32_t id) {
         }
     }
     return fd >= 0 ? new Fence(fd) : Fence::NO_FENCE;
+}
+#ifdef TARGET_BOARD_PLATFORM_RK30XXB
+status_t HWComposer::fbs_post(void)
+{
+    static bool bSet=false;
+    if(!bSet)
+    {
+        property_set("sys.gpvr.fbs_post", "1");
+        bSet=true;
+    }
+    if(mFbDev)
+        return mFbDev->post(mFbDev,NULL);
+    else
+    {
+        ALOGE("%s:mFbDev is null",__func__);
+        return -1;
+    }
+}
+#endif
+status_t HWComposer::setSkipFrame(  uint32_t skipflag ) {
+    int err = NO_ERROR;
+    if (mHwc) {             
+        for (size_t i=0 ; i<mNumDisplays ; i++) {
+            DisplayData& disp(mDisplayData[i]);         
+            if (disp.list) {      
+                disp.list->skipflag = skipflag;                   
+            }
+        }
+    }
+    return (status_t)err;
+}
+status_t HWComposer::layerRecover( ) 
+{
+    int err = NO_ERROR;
+    if (mHwc &&  mHwc->layer_recover ) {             
+        mHwc->layer_recover(mHwc, mNumDisplays, mLists);
+    }
+    return (status_t)err;
 }
 
 status_t HWComposer::commit() {
@@ -778,6 +904,11 @@ status_t HWComposer::commit() {
     return (status_t)err;
 }
 
+status_t HWComposer::videoCopyBit(hwc_layer_1_t* hwcLayer,int flag)
+{
+    int err = mHwc->rkCopybit(mHwc, hwcLayer->handle, hwcLayer->handle, flag);
+    return (status_t)err;
+}
 status_t HWComposer::setPowerMode(int disp, int mode) {
     LOG_FATAL_IF(disp >= VIRTUAL_DISPLAY_ID_BASE);
     if (mHwc) {
@@ -840,11 +971,25 @@ bool HWComposer::supportsFramebufferTarget() const {
 
 int HWComposer::fbPost(int32_t id,
         const sp<Fence>& acquireFence, const sp<GraphicBuffer>& buffer) {
-    if (mHwc && hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_1)) {
+    bool fbcmp = mFlinger->mUseLcdcComposer ? !hasGlesComposition(id):true;    
+    if (mHwc && hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_1)
+        #ifndef USE_PREPARE_FENCE
+        && fbcmp
+        #endif
+       ) {
         return setFramebufferTarget(id, acquireFence, buffer);
     } else {
+        DisplayData& disp(mDisplayData[id]);    
+        if (!mHwc || !disp.list->skipflag) 
+        {
+          if (acquireFence!=NULL)
+          {
         acquireFence->waitForever("HWComposer::fbPost");
+          }
         return mFbDev->post(mFbDev, buffer->handle);
+        }    
+        else
+            return NO_ERROR;
     }
 }
 
@@ -943,6 +1088,9 @@ public:
         getLayer()->releaseFenceFd = -1;
         return fd >= 0 ? new Fence(fd) : Fence::NO_FENCE;
     }
+    virtual hwc_layer_1_t * gethwcLayer()  {
+        return ( hwc_layer_1_t *)getLayer();
+    }
     virtual void setAcquireFenceFd(int fenceFd) {
         getLayer()->acquireFenceFd = fenceFd;
     }
@@ -995,12 +1143,28 @@ public:
     virtual void setTransform(uint32_t transform) {
         getLayer()->transform = transform;
     }
+    virtual void setRealTransform(uint32_t realtransform) {
+        getLayer()->realtransform = realtransform;
+    }    
     virtual void setFrame(const Rect& frame) {
         getLayer()->displayFrame = reinterpret_cast<hwc_rect_t const&>(frame);
     }
     virtual void setCrop(const FloatRect& crop) {
         if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_3)) {
+            #if 0
             getLayer()->sourceCropf = reinterpret_cast<hwc_frect_t const&>(crop);
+            hwc_rect_t& r = getLayer()->sourceCrop;
+            r.left  = int(ceilf(crop.left));
+            r.top   = int(ceilf(crop.top));
+            r.right = int(floorf(crop.right));
+            r.bottom= int(floorf(crop.bottom));
+            #else
+            hwc_rect_t& r = getLayer()->sourceCrop;
+            r.left  = int(ceilf(crop.left));
+            r.top   = int(ceilf(crop.top));
+            r.right = int(floorf(crop.right));
+            r.bottom= int(floorf(crop.bottom));   
+            #endif
         } else {
             /*
              * Since h/w composer didn't support a flot crop rect before version 1.3,
@@ -1081,6 +1245,13 @@ public:
             surfaceDamage.numRects = 0;
             surfaceDamage.rects = NULL;
         }
+    }
+    virtual void setLayername(const char *layername) {
+        int strlens ;
+        strlens = strlen(layername);
+       strlens = strlens > LayerNameLength ? LayerNameLength:strlens;
+       memcpy(getLayer()->LayerName,layername,strlens);
+       getLayer()->LayerName[strlens] = 0;
     }
 };
 
@@ -1200,11 +1371,17 @@ void HWComposer::dump(String8& result) const {
                     static char const* compositionTypeName[] = {
                             "GLES",
                             "HWC",
-                            "BKGND",
+                            "BACKGROUND",
                             "FB TARGET",
-                            "SIDEBAND",
-                            "HWC_CURSOR",
-                            "UNKNOWN"};
+                            "HWC_SIDEBAND",
+                            "HWC_CURSOR_OVERLAY",
+                            "HWC_TOWIN0",
+                            "HWC_TOWIN1",
+                            "HWC_LCDC",
+                            "HWC_NODRAW",
+                            "HWC_MIX",
+                            "HWC_MIX_V2",
+                            "blit"};
                     if (type >= NELEM(compositionTypeName))
                         type = NELEM(compositionTypeName) - 1;
 
