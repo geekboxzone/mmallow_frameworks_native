@@ -628,7 +628,6 @@ status_t HWComposer::setFramebufferTarget(int32_t id,
         acquireFenceFd = acquireFence->dup();
     }
 
-    // ALOGD("fbPost: handle=%p, fence=%d", buf->handle, acquireFenceFd);
     disp.fbTargetHandle = buf->handle;
     disp.framebufferTarget->handle = disp.fbTargetHandle;
     disp.framebufferTarget->acquireFenceFd = acquireFenceFd;
@@ -761,6 +760,7 @@ status_t HWComposer::prepare() {
             disp.hasFbComp = false;
             disp.hasOvComp = false;
             disp.haslcdComp = false;
+            disp.hasBlitComp = false;
             if (disp.list) {
                 for (size_t i=0 ; i<disp.list->numHwLayers ; i++) {
                     hwc_layer_1_t& l = disp.list->hwLayers[i];
@@ -771,6 +771,10 @@ status_t HWComposer::prepare() {
                     if (l.flags & HWC_SKIP_LAYER) {
                        // l.compositionType = HWC_FRAMEBUFFER;
                     }
+                    if(l.compositionType == HWC_BLITTER)
+                    {  
+                        disp.hasBlitComp = true;
+                    }                    
                     if (l.compositionType == HWC_FRAMEBUFFER) {
                         disp.hasFbComp = true;
                     }
@@ -807,6 +811,11 @@ bool HWComposer::hasGlesComposition(int32_t id) const {
     return mDisplayData[id].hasFbComp;
 }
 
+bool HWComposer::hasBlitComposition(int32_t id) const {
+    if (!mHwc || uint32_t(id)>31 || !mAllocatedDisplayIDs.hasBit(id))
+        return true;
+    return mDisplayData[id].hasBlitComp;
+}
 bool HWComposer::hasLcdComposition(int32_t id) const {
     if (uint32_t(id)>31 || !mAllocatedDisplayIDs.hasBit(id))
         return false;
@@ -1477,7 +1486,7 @@ HWComposer::DisplayData::DisplayData()
     currentConfig(0),
     format(HAL_PIXEL_FORMAT_RGBA_8888),
     connected(false),
-    hasFbComp(false), hasOvComp(false),
+    hasFbComp(false), hasBlitComp(false),hasOvComp(false),
     capacity(0), list(NULL),
     framebufferTarget(NULL), fbTargetHandle(0),
     lastRetireFence(Fence::NO_FENCE), lastDisplayFence(Fence::NO_FENCE),

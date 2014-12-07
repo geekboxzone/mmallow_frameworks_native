@@ -119,7 +119,8 @@ public:
 
     // does this display have layers handled by GLES
     bool hasGlesComposition(int32_t id) const;
-
+  // rk: does this display have layers handled by Blit (rga)
+    bool hasBlitComposition(int32_t id) const;
     bool hasLcdComposition(int32_t id) const;
     // get the releaseFence file descriptor for a display's framebuffer layer.
     // the release fence is only valid after commit()
@@ -342,6 +343,7 @@ private:
         uint32_t format;    // pixel format from FB hal, for pre-hwc-1.1
         bool connected;
         bool hasFbComp;
+        bool hasBlitComp;        
         bool hasOvComp;
         bool haslcdComp;
         size_t capacity;

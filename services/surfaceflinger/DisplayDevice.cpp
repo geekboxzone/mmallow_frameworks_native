@@ -252,7 +252,7 @@ void DisplayDevice::swapBuffers(HWComposer& hwc) const {
     //        devices, where HWComposer::commit() handles things); or
     //    (b) this is a virtual display
     if (hwc.initCheck() != NO_ERROR ||
-            (hwc.hasGlesComposition(mHwcDisplayId) &&
+            ((hwc.hasGlesComposition(mHwcDisplayId)|| hwc.hasBlitComposition(mHwcDisplayId)) &&
              (hwc.supportsFramebufferTarget() || mType >= DISPLAY_VIRTUAL))) {
         EGLBoolean success = eglSwapBuffers(mDisplay, mSurface);
         if (!success) {
