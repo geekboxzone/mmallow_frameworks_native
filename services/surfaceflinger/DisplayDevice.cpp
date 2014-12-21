@@ -244,6 +244,7 @@ status_t DisplayDevice::prepareFrame(const HWComposer& hwc) const {
     return mDisplaySurface->prepareFrame(compositionType);
 }
 
+
 void DisplayDevice::swapBuffers(HWComposer& hwc) const {
     // We need to call eglSwapBuffers() if:
     //  (1) we don't have a hardware composer, or
@@ -251,8 +252,8 @@ void DisplayDevice::swapBuffers(HWComposer& hwc) const {
     //    (a) we have framebuffer target support (not present on legacy
     //        devices, where HWComposer::commit() handles things); or
     //    (b) this is a virtual display
-    if (hwc.initCheck() != NO_ERROR ||
-            ((hwc.hasGlesComposition(mHwcDisplayId)|| hwc.hasBlitComposition(mHwcDisplayId)) &&
+    if (hwc.initCheck() != NO_ERROR || 
+            ((hwc.hasGlesComposition(mHwcDisplayId)/*|| hwc.hasBlitComposition(mHwcDisplayId)*/) &&
              (hwc.supportsFramebufferTarget() || mType >= DISPLAY_VIRTUAL))) {
         EGLBoolean success = eglSwapBuffers(mDisplay, mSurface);
         if (!success) {
