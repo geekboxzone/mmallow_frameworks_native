@@ -180,10 +180,17 @@ HWComposer::HWComposer(
         disp.configs.push_back(config);
         disp.currentConfig = 0;
     } else if (mHwc) {
+#ifdef GPU_G6110
+        // here we're guaranteed to have at least HWC 1.1
+        for (size_t i =0 ; i<1 ; i++) {
+            queryDisplayProperties(i);
+        }
+#else
         // here we're guaranteed to have at least HWC 1.1
         for (size_t i =0 ; i<NUM_BUILTIN_DISPLAYS ; i++) {
             queryDisplayProperties(i);
         }
+#endif
     }
 
     if (needVSyncThread) {

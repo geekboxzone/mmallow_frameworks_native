@@ -73,6 +73,10 @@ ifeq ($(strip $(TARGET_BOARD_PLATFORM)),rk30xxb)
     LOCAL_CFLAGS += -DTARGET_BOARD_PLATFORM_RK30XXB
 endif
 
+ifeq ($(strip $(TARGET_BOARD_PLATFORM_GPU)),G6110)
+	LOCAL_CFLAGS += -DGPU_G6110
+endif
+
 # See build/target/board/generic/BoardConfig.mk for a description of this setting.
 ifneq ($(VSYNC_EVENT_PHASE_OFFSET_NS),)
     LOCAL_CFLAGS += -DVSYNC_EVENT_PHASE_OFFSET_NS=$(VSYNC_EVENT_PHASE_OFFSET_NS)
