@@ -126,7 +126,9 @@ void GLES20RenderEngine::setupLayerBlending(
 
     if (alpha < 0xFF || !opaque) {
         glEnable(GL_BLEND);
-        glBlendFunc(premultipliedAlpha ? GL_ONE : GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+       // glBlendFunc(premultipliedAlpha ? GL_ONE : GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+       glBlendFuncSeparate(premultipliedAlpha ? GL_ONE : GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+
     } else {
         glDisable(GL_BLEND);
     }

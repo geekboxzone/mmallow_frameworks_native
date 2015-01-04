@@ -958,7 +958,7 @@ static int frm_count = 0;
 void SurfaceFlinger::handleMessageRefresh() {
     ATRACE_CALL();
    // struct timeval tpend1, tpend2;
-   // long usec1 = 0;
+    //long usec1 = 0;
    // gettimeofday(&tpend1,NULL);
    // ALOGD("sf start");
     preComposition();
@@ -977,7 +977,7 @@ void SurfaceFlinger::handleMessageRefresh() {
    // gettimeofday(&tpend2,NULL);
    // usec1 = 1000*(tpend2.tv_sec - tpend1.tv_sec) + (tpend2.tv_usec- tpend1.tv_usec)/1000;
    // if((int)usec1 > 5)
-   // ALOGD("sf use time=%ld ms",usec1);
+  //  ALOGD("sf use time=%ld ms",usec1);
 #ifdef ENABLE_WFD_SKIP_FRAME
      char value[PROPERTY_VALUE_MAX];
      memset(value,0,PROPERTY_VALUE_MAX);
@@ -1327,7 +1327,8 @@ void SurfaceFlinger::postFramebuffer()
 #endif
         r = hwc.commit();
     }
-    if (mDebugFPS > 0) {    //add by qiuen
+    if (mDebugFPS > 0) 
+    {    //add by qiuen
         debugShowFPS();
     }
     if (mUseLcdcComposer) {
@@ -2025,7 +2026,11 @@ bool SurfaceFlinger::doComposeSurfaces(const sp<const DisplayDevice>& hw, const 
 
         // Never touch the framebuffer if we don't have any framebuffer layers
         const bool hasHwcComposition = hwc.hasHwcComposition(id);
-        if (hasHwcComposition) {
+        const bool haveBlit = hwc.hasBlitComposition(id);
+        const bool haveLcdc = hwc.hasLcdComposition(id);
+
+        if (hasHwcComposition || haveBlit || haveLcdc) 
+        {
             // when using overlays, we assume a fully transparent framebuffer
             // NOTE: we could reduce how much we need to clear, for instance
             // remove where there are opaque FB layers. however, on some
