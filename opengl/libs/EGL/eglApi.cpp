@@ -1821,7 +1821,7 @@ EGLBoolean eglRenderBufferModifiedANDROID(EGLDisplay dpy, EGLSurface draw){
 #else
     egl_display_ptr  const dp = get_display(dpy);
     egl_surface_t const * const s = get_surface(draw);
-    if (s->cnx->egl.eglGetRenderBufferANDROID) {
+    if (s->cnx->egl.eglRenderBufferModifiedANDROID) {
             return s->cnx->egl.eglRenderBufferModifiedANDROID(
                         dp->disp.dpy, s->surface);
     }
