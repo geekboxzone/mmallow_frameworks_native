@@ -722,7 +722,13 @@ enum {
     AKEYCODE_NAVIGATE_PREVIOUS = 260,
     AKEYCODE_NAVIGATE_NEXT   = 261,
     AKEYCODE_NAVIGATE_IN     = 262,
-    AKEYCODE_NAVIGATE_OUT    = 263
+    AKEYCODE_NAVIGATE_OUT    = 263,
+   
+    AKEYCODE_TV_KEYMOUSE_LEFT = 280,
+    AKEYCODE_TV_KEYMOUSE_RIGHT = 281,
+    AKEYCODE_TV_KEYMOUSE_UP = 282,
+    AKEYCODE_TV_KEYMOUSE_DOWN = 283,
+    AKEYCODE_TV_KEYMOUSE_MODE_SWITCH = 284
 
     // NOTE: If you add a new keycode here you must also add it to several other files.
     //       Refer to frameworks/base/core/java/android/view/KeyEvent.java for the full list.
