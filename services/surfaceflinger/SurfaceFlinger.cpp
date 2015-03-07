@@ -2067,7 +2067,11 @@ bool SurfaceFlinger::doComposeSurfaces(const sp<const DisplayDevice>& hw, const 
         const bool haveBlit = hwc.hasBlitComposition(id);
         const bool haveLcdc = hwc.hasLcdComposition(id);
 
-        if (hasHwcComposition || haveBlit || haveLcdc) 
+		bool isMixNeedClear = false; 
+        if	(id <= 1 && cur != end) {
+             isMixNeedClear = cur->getCompositionType() == HWC_MIX_V2;
+		}
+        if (hasHwcComposition || haveBlit || haveLcdc || isMixNeedClear)
         {
             // when using overlays, we assume a fully transparent framebuffer
             // NOTE: we could reduce how much we need to clear, for instance
