@@ -125,6 +125,9 @@ DisplayDevice::DisplayDevice(
     mViewport.makeInvalid();
     mFrame.makeInvalid();
 
+    mViewport.set(bounds());
+    mFrame.set(bounds());
+
     // virtual displays are always considered enabled
     mPowerMode = (mType >= DisplayDevice::DISPLAY_VIRTUAL) ?
                   HWC_POWER_MODE_NORMAL : HWC_POWER_MODE_OFF;
@@ -457,8 +460,9 @@ void DisplayDevice::setProjection(int orientation,
 #endif
     if (mType == DisplayDevice::DISPLAY_PRIMARY) {
         mClientOrientation = orientation;
-        orientation = (mHardwareOrientation +orientation) % 4;
+        orientation = (mHardwareOrientation + orientation) % 4;
     }
+
     const int w = mDisplayWidth;
     const int h = mDisplayHeight;
 
@@ -513,6 +517,7 @@ void DisplayDevice::setProjection(int orientation,
             mClientOrientation, w, h, &realR) == NO_ERROR) {
         mRealGlobalTransform = realR * TP * S * TL;
     }
+
     const uint8_t type = mGlobalTransform.getType();
     mNeedsFiltering = (!mGlobalTransform.preserveRects() ||
             (type >= Transform::SCALE));
@@ -532,16 +537,18 @@ void DisplayDevice::dump(String8& result) const {
     const Transform& realTR(mRealGlobalTransform);
     result.appendFormat(
         "+ DisplayDevice: %s\n"
-        "   type=%x, hwcId=%d, layerStack=%u, (%4dx%4d), ANativeWindow=%p, orient=%2d (type=%08x), "
-        "flips=%u, isSecure=%d, secureVis=%d, powerMode=%d, activeConfig=%d, numLayers=%zu\n"
+        "   type=%x, hwcId=%d, layerStack=%u, (%4dx%4d), ANativeWindow=%p, "
+        "orient=%2d clienOrient=%2d (type=%08x), "
+        "flips=%u, isSecure=%d, secureVis=%d,"
+        "powerMode=%d, activeConfig=%d, numLayers=%zu\n"
         "   v:[%d,%d,%d,%d], f:[%d,%d,%d,%d], s:[%d,%d,%d,%d],"
         "transform:[[%0.3f,%0.3f,%0.3f][%0.3f,%0.3f,%0.3f][%0.3f,%0.3f,%0.3f]]\n"
         "   real transform:[[%0.3f,%0.3f,%0.3f][%0.3f,%0.3f,%0.3f][%0.3f,%0.3f,%0.3f]]\n",
-        mDisplayName.string(), mType, mHwcDisplayId,
-        mLayerStack, mDisplayWidth, mDisplayHeight, mNativeWindow.get(),
-        mOrientation, tr.getType(), getPageFlipCount(),
-        mIsSecure, mSecureLayerVisible, mPowerMode, mActiveConfig,
-        mVisibleLayersSortedByZ.size(),
+        mDisplayName.string(),
+        mType, mHwcDisplayId, mLayerStack, mDisplayWidth, mDisplayHeight, mNativeWindow.get(),
+        mOrientation, mClientOrientation, tr.getType(), 
+        getPageFlipCount(), mIsSecure, mSecureLayerVisible, 
+        mPowerMode, mActiveConfig, mVisibleLayersSortedByZ.size(),
         mViewport.left, mViewport.top, mViewport.right, mViewport.bottom,
         mFrame.left, mFrame.top, mFrame.right, mFrame.bottom,
         mScissor.left, mScissor.top, mScissor.right, mScissor.bottom,

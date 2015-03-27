@@ -114,8 +114,8 @@ public:
     void                    setDisplaySize(const int newWidth, const int newHeight);
     void                    setProjection(int orientation, const Rect& viewport, const Rect& frame);
 
-    int                     getOrientation() const { return mOrientation; }
-    int                     getHardwareRotation() const { return mOrientation; };
+    int                     getOrientation() const { return mClientOrientation; }
+    int                     getHardwareRotation() const { return mOrientation; };   // .T : 修改 名称
     uint32_t                getOrientationTransform() const;
     const Transform&        getTransform() const { return mGlobalTransform; }
     const Transform&        getTransform(bool shouldTransform) const { return shouldTransform ? mGlobalTransform : mRealGlobalTransform; }
@@ -218,7 +218,15 @@ private:
             int w, int h, Transform* tr);
 
     uint32_t mLayerStack;
-    int mOrientation;
+
+    /** 
+     * 待显示的 layer_stack 以 original_display 为基准的 orientation.
+     */
+    int mOrientation;    // 取值诸如 0, 1 (顺时针转过 90 度)
+    /** 
+     * hw_rotation_extension 引入的, 表征 client 请求的 display (pre_rotated_display) 的 orientation. 
+     * 待显示的 layer_stack 以 pre_rotated_display 为基准的 orientation.
+     */
     int mClientOrientation;
     // user-provided visible area of the layer stack
     Rect mViewport;
@@ -233,7 +241,20 @@ private:
     int mPowerMode;
     // Current active config
     int mActiveConfig;
-	int mHardwareOrientation;
+
+    /**
+     * .DP : preset_orientation : 
+     * hw_rotation_extension 引入的,
+     * 相对 original_display_default_orientation, 执行预定义旋转(pre_rotation) 之后的 default_orientation.
+     *
+     * wms 通过 sf 的 getdisplayconfigs 得到 display_info 都是 pre_rotated_display 的信息, 
+     * 比如 pre_rotation 是顺时针转过 90 度, 则 pre_rotated_display 的高度是 original_display 的宽度, 宽度是高度. 
+     * pre_rotated_display 也记为 display_saw_by_sf_clients. 
+     *
+     * 默认为 0, 不起任何作用. 
+     * 只可能在 primary_display 中实际使用. 
+     */
+    int mHardwareOrientation;
 };
 
 }; // namespace android

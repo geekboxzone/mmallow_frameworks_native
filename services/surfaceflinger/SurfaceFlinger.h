@@ -146,13 +146,16 @@ public:
         return *mRenderEngine;
     }
 
+    // see DisplayDevice::mHardwareOrientation
     int mHardwareOrientation;
+
     int mUseLcdcComposer;
 	Mutex  mCaptureScreenLock;
     // Get hardware orientation
     int getHardwareOrientation() const { return mHardwareOrientation; }
     bool orientationSwap() const { return mHardwareOrientation % 2; }
     bool ReleaseOldBuffer(void);    //rk : for lcdc composer
+
 private:
     friend class Client;
     friend class DisplayEventConnection;

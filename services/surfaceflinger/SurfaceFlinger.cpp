@@ -184,8 +184,10 @@ SurfaceFlinger::SurfaceFlinger()
     mDebugFPS = atoi(value);
     ALOGI_IF(mDebugRegion, "showupdates enabled");
     ALOGI_IF(mDebugDDMS, "DDMS debugging enabled");
+
     property_get("ro.sf.hwrotation", value, "0");
     mHardwareOrientation = atoi(value) / 90;
+
     property_get("ro.sf.lcdc_composer", value, "0");
     mUseLcdcComposer = atoi(value);
     property_set("sys.ggsurflgr.version", RK_SURFLGR_VERSION);
@@ -590,7 +592,7 @@ status_t SurfaceFlinger::getDisplayConfigs(const sp<IBinder>& display,
     if (!display.get())
         return NAME_NOT_FOUND;
 
-    int32_t type = NAME_NOT_FOUND;
+    int32_t type = NAME_NOT_FOUND;      // current_display_type.
     for (int i=0 ; i<DisplayDevice::NUM_BUILTIN_DISPLAY_TYPES ; i++) {
         if (display == mBuiltinDisplays[i]) {
             type = i;
@@ -601,6 +603,12 @@ status_t SurfaceFlinger::getDisplayConfigs(const sp<IBinder>& display,
     if (type < 0) {
         return type;
     }
+
+    const HWComposer& hwc(getHwComposer());
+    float xdpi = 0.0;
+    float ydpi = 0.0;
+    xdpi = hwc.getDpiX(type);
+    ydpi = hwc.getDpiY(type);
 
     // TODO: Not sure if display density should handled by SF any longer
     class Density {
@@ -621,17 +629,23 @@ status_t SurfaceFlinger::getDisplayConfigs(const sp<IBinder>& display,
 
     configs->clear();
 
-    const Vector<HWComposer::DisplayConfig>& hwConfigs =
+    const Vector<HWComposer::DisplayConfig>& hwConfigs =        // hwc_display_config_list
             getHwComposer().getConfigs(type);
-    for (size_t c = 0; c < hwConfigs.size(); ++c) {
-        const HWComposer::DisplayConfig& hwConfig = hwConfigs[c];
-        DisplayInfo info = DisplayInfo();
+    for (size_t c = 0; c < hwConfigs.size(); ++c) 
+    {
+        const HWComposer::DisplayConfig& hwConfig = hwConfigs[c];   // current_hwc_display_config
+        DisplayInfo info = DisplayInfo();   // current_display_info
 
         float xdpi = hwConfig.xdpi;
         float ydpi = hwConfig.ydpi;
 
+        info.w = hwConfig.width;
+        info.h = hwConfig.height;
+
+        /* 若当前 display 是 primary_display, 则... */
         if (type == DisplayDevice::DISPLAY_PRIMARY) {
-            // The density of the device is provided by a build property
+            // The density of the device 
+            // is provided by a build property
             float density = Density::getBuildDensity() / 160.0f;
             if (density == 0) {
                 // the build doesn't provide a density -- this is wrong!
@@ -649,17 +663,27 @@ status_t SurfaceFlinger::getDisplayConfigs(const sp<IBinder>& display,
             // TODO: this needs to go away (currently needed only by webkit)
             sp<const DisplayDevice> hw(getDefaultDisplayDevice());
             info.orientation = hw->getOrientation();
-        } else {
+            
+            /* 若 display_saw_by_sf_clients 和 original_display 的 宽高信息要对调, 则... */
+            if ( orientationSwap() ) 
+            {
+                xdpi = hwc.getDpiY(type);
+                ydpi = hwc.getDpiX(type);
+                info.w = hwc.getHeight(type);
+                info.h = hwc.getWidth(type);
+            }
+        } 
+        /* 否则, 即当前 display "不是" primary_display, ... */
+        else {
             // TODO: where should this value come from?
             static const int TV_DENSITY = 213;
             info.density = TV_DENSITY / 160.0f;
             info.orientation = 0;
         }
 
-        info.w = hwConfig.width;
-        info.h = hwConfig.height;
         info.xdpi = xdpi;
         info.ydpi = ydpi;
+
         info.fps = float(1e9 / hwConfig.refresh);
         info.appVsyncOffset = VSYNC_EVENT_PHASE_OFFSET_NS;
 
@@ -1577,7 +1601,8 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
                                 state.type, hwcDisplayId,
                                 mHwc->getFormat(hwcDisplayId), state.isSecure,
                                 display, dispSurface, producer,
-                                mRenderEngine->getEGLConfig(),mHardwareOrientation);
+                                mRenderEngine->getEGLConfig(),
+                                mHardwareOrientation);      // .bug : hw_rotation_extension 只应该作用在 primary_display.
                         hw->setLayerStack(state.layerStack);
                         hw->setProjection(state.orientation,
                                 state.viewport, state.frame);
