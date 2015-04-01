@@ -25,13 +25,18 @@
 
 namespace android {
 
+/** 
+ * display_info_t, 用于在 sf 和 surface_composer_client 之间传递 特定 display 的信息. 
+ */
 struct DisplayInfo {
     uint32_t w;
     uint32_t h;
     float xdpi;
     float ydpi;
     float fps;
+    /** 具体 dpi 数值和 160(mdpi) 的比值. */
     float density;
+    /** client 要求的 display 的 orientations. */
     uint8_t orientation;
     bool secure;
     nsecs_t appVsyncOffset;
