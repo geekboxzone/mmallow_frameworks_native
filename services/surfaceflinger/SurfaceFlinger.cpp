@@ -3436,11 +3436,14 @@ void SurfaceFlinger::renderScreenImplLocked(
     RenderEngine& engine(getRenderEngine());
 
     // get screen geometry
-    const int32_t hw_w = hw->getWidth();
-    const int32_t hw_h = hw->getHeight();
-    const bool filtering = static_cast<int32_t>(reqWidth) != hw_w ||
-                           static_cast<int32_t>(reqHeight) != hw_h;
+    uint32_t hw_w = hw->getWidth();
+    uint32_t hw_h = hw->getHeight();
+    if (orientationSwap()) {
+        hw_w = hw->getHeight();
+        hw_h = hw->getWidth();
+    }
 
+	const bool filtering = reqWidth != hw_w || reqHeight != hw_h;
  	HWComposer& hwc(getHwComposer());
     if(mUseLcdcComposer)
     {
@@ -3456,16 +3459,19 @@ void SurfaceFlinger::renderScreenImplLocked(
     }
 
     // ensure that sourceCrop is inside screen
+    // compile error
+    int32_t hw_width = (int32_t)hw_w;
+    int32_t hw_height = (int32_t)hw_h;
     if (sourceCrop.left < 0) {
         ALOGE("Invalid crop rect: l = %d (< 0)", sourceCrop.left);
     }
-    if (sourceCrop.right > hw_w) {
+    if (sourceCrop.right > hw_width) {
         ALOGE("Invalid crop rect: r = %d (> %d)", sourceCrop.right, hw_w);
     }
     if (sourceCrop.top < 0) {
         ALOGE("Invalid crop rect: t = %d (< 0)", sourceCrop.top);
     }
-    if (sourceCrop.bottom > hw_h) {
+    if (sourceCrop.bottom > hw_height) {
         ALOGE("Invalid crop rect: b = %d (> %d)", sourceCrop.bottom, hw_h);
     }
 
@@ -3545,14 +3551,30 @@ status_t SurfaceFlinger::captureScreenImplLocked(
         std::swap(hw_w, hw_h);
     }
 
-    if ((reqWidth > hw_w) || (reqHeight > hw_h)) {
-        ALOGE("size mismatch (%d, %d) > (%d, %d)",
-                reqWidth, reqHeight, hw_w, hw_h);
-        return BAD_VALUE;
-    }
+    if (orientationSwap()) {
+        if (reqWidth == 0 && reqHeight == 0) {
+            reqWidth = hw_h;
+            reqHeight = hw_w;
+        } else {
+            if ((reqWidth > hw_h) || (reqHeight > hw_w)) {
+                ALOGE("size mismatch (%d, %d) > (%d, %d)",
+                        reqWidth, reqHeight, hw_w, hw_h);
+                return BAD_VALUE;
+            }
 
-    reqWidth  = (!reqWidth)  ? hw_w : reqWidth;
-    reqHeight = (!reqHeight) ? hw_h : reqHeight;
+            reqWidth  = (!reqWidth)  ? hw_h : reqWidth;
+            reqHeight = (!reqHeight) ? hw_w : reqHeight;
+        }
+    } else {
+        if ((reqWidth > hw_w) || (reqHeight > hw_h)) {
+            ALOGE("size mismatch (%d, %d) > (%d, %d)",
+                        reqWidth, reqHeight, hw_w, hw_h);
+            return BAD_VALUE;
+        }
+
+        reqWidth  = (!reqWidth)  ? hw_w : reqWidth;
+        reqHeight = (!reqHeight) ? hw_h : reqHeight;
+    }
 
     // create a surface (because we're a producer, and we need to
     // dequeue/queue a buffer)
