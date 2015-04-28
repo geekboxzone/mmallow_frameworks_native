@@ -562,7 +562,7 @@ status_t BufferQueueProducer::queueBuffer(int slot,
         return BAD_VALUE;
     }
 
-    switch (scalingMode) {
+    switch (scalingMode & 0xff) {
         case NATIVE_WINDOW_SCALING_MODE_FREEZE:
         case NATIVE_WINDOW_SCALING_MODE_SCALE_TO_WINDOW:
         case NATIVE_WINDOW_SCALING_MODE_SCALE_CROP:

@@ -1303,6 +1303,19 @@ void SurfaceFlinger::setUpHWComposer() {
         for (size_t dpy=0 ; dpy<mDisplays.size() ; dpy++) {
             sp<const DisplayDevice> hw(mDisplays[dpy]);
             hw->prepareFrame(hwc);
+
+            const int32_t id = hw->getHwcDisplayId();
+            if (id >= 0) {
+                const Vector< sp<Layer> >& currentLayers(
+                    hw->getVisibleLayersSortedByZ());
+                const size_t count = currentLayers.size();
+                HWComposer::LayerListIterator cur = hwc.begin(id);
+                const HWComposer::LayerListIterator end = hwc.end(id);
+                for (size_t i=0 ; cur!=end && i<count ; ++i, ++cur) {
+                    const sp<Layer>& layer(currentLayers[i]);
+                    layer->setDisplayStereo(hw, *cur);
+                }
+            }
         }
     }
 }

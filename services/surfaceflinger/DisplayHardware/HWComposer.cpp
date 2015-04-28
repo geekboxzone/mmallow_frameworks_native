@@ -1126,6 +1126,12 @@ public:
             }
         }
     }
+    virtual void setAlreadyStereo(int32_t alreadyStereo) {
+        getLayer()->alreadyStereo = alreadyStereo;
+    }
+    virtual int32_t getDisplayStereo() const {
+        return getLayer()->displayStereo;
+    }
     virtual void setDefaultState() {
         hwc_layer_1_t* const l = getLayer();
         l->compositionType = HWC_FRAMEBUFFER;

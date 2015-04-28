@@ -858,13 +858,24 @@ int Surface::setScalingMode(int mode)
         case NATIVE_WINDOW_SCALING_MODE_SCALE_TO_WINDOW:
         case NATIVE_WINDOW_SCALING_MODE_SCALE_CROP:
             break;
+        case 300:	// close stereo
+        case 301:	// left-right
+		case 302:	// up-bottom
+            break;
         default:
             ALOGE("unknown scaling mode: %d", mode);
             return BAD_VALUE;
     }
 
     Mutex::Autolock lock(mMutex);
-    mScalingMode = mode;
+    if(300==mode || 301==mode || 302==mode) {
+		if(300==mode)   mScalingMode &= ~0x300;
+        if(301==mode)   mScalingMode |= 0x100;
+		if(302==mode)   mScalingMode |= 0x200;
+    } else {
+        mScalingMode &= ~0xff;
+        mScalingMode |= mode;
+    }
     return NO_ERROR;
 }
 
