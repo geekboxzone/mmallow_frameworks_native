@@ -161,6 +161,11 @@ public:
     // Get hardware orientation
     bool ReleaseOldBuffer(void);    //rk : for lcdc composer
 
+    /* ------------------------------------------------------------------------
+    * H/W composer
+    */
+    HWComposer& getHwComposer() const { return *mHwc; }
+
 private:
     friend class Client;
     friend class DisplayEventConnection;
@@ -389,12 +394,6 @@ private:
 
     // allocate a h/w composer display id
     int32_t allocateHwcDisplayId(DisplayDevice::DisplayType type);
-
-    /* ------------------------------------------------------------------------
-     * H/W composer
-     */
-
-    HWComposer& getHwComposer() const { return *mHwc; }
 
     /* ------------------------------------------------------------------------
      * Compositing

@@ -197,6 +197,8 @@ HWComposer::HWComposer(
         // we don't have VSYNC support, we need to fake it
         mVSyncThread = new VSyncThread(*this);
     }
+
+    mRepaintThread  = new RepaintThread(*this);
 }
 
 HWComposer::~HWComposer() {
@@ -205,6 +207,9 @@ HWComposer::~HWComposer() {
     }
     if (mVSyncThread != NULL) {
         mVSyncThread->requestExitAndWait();
+    }
+    if (mRepaintThread != NULL) {
+        mRepaintThread->requestExitAndWait();
     }
     if (mHwc) {
         hwc_close_1(mHwc);
@@ -645,9 +650,10 @@ bool gTimeIsUp = false;
 sp<SurfaceFlinger> gFlinger = NULL;
 void timer_handler(int sig) {
     if(sig == SIGALRM) {
-        gFlinger->repaintEverything();
+        const HWComposer& hwc = gFlinger->getHwComposer();
+        hwc.mRepaintThread->setRepaint(true);
         gTimeIsUp = true;
-        ALOGV("  time up, send a refresh msg!");
+        ALOGV("new:time up, send a refresh msg!");
     }
 }
 status_t HWComposer::prepare() {
@@ -694,7 +700,6 @@ status_t HWComposer::prepare() {
         if (disp.list) {
             bool NeedRepaint = false;
             unsigned int TotalSize = 0;
-            int OnlyTopUpdate = 0;
             const DisplayConfig& currentConfig = disp.configs[disp.currentConfig];
             struct itimerval tv = {{0,0},{0,0}};
 
@@ -716,16 +721,6 @@ status_t HWComposer::prepare() {
                 {
                     NeedRepaint = true;
                 }
-                if (l.bufferUpdate) {
-                    l.bufferUpdate = 0;
-                    bool IsSmallTop = !strcmp("StatusBar", l.LayerName);
-                    if(IsSmallTop) {
-                     
-                        unsigned int size = (rt->right - rt->left) * (rt->bottom - rt->top);
-                        IsSmallTop = (size < ((currentConfig.width * currentConfig.height)/4));
-                    }
-                    OnlyTopUpdate = (IsSmallTop && 0==OnlyTopUpdate) ? 1 : -1;
-                }
             }
             if (NeedRepaint) {
                 if(TotalSize < ((currentConfig.width * currentConfig.height * 5)/4)) {
@@ -733,8 +728,9 @@ status_t HWComposer::prepare() {
                 }
             }
             if (NeedRepaint) {
-                if (gTimeIsUp || 1==OnlyTopUpdate) {
-                    if (gTimeIsUp)   gTimeIsUp = false;
+                if (gTimeIsUp) {
+                    gTimeIsUp = false;
+                    mRepaintThread->setRepaint(false);
                     ALOGV("close timer & go gpu composer!");
                     tv.it_value.tv_usec = 0;
                     setitimer(ITIMER_REAL, &tv, NULL);
@@ -1495,6 +1491,36 @@ bool HWComposer::VSyncThread::threadLoop() {
         mHwc.mEventHandler.onVSyncReceived(0, next_vsync);
     }
 
+    return true;
+}
+
+void HWComposer::RepaintThread::onFirstRef() {
+    run("RepaintThread", PRIORITY_URGENT_DISPLAY + PRIORITY_MORE_FAVORABLE);
+}
+
+HWComposer::RepaintThread::RepaintThread(HWComposer& hwc)
+    : mRHwc(hwc), mRepaint(false)
+{
+}
+
+void HWComposer::RepaintThread::setRepaint(bool isRep) {
+    Mutex::Autolock _l(mRLock);
+    if (mRepaint != isRep) {
+        mRepaint = isRep;
+        mRtCondition.signal();
+    }
+}
+
+bool HWComposer::RepaintThread::threadLoop() {
+    { // scope for lock
+        Mutex::Autolock _l(mRLock);
+        while (!mRepaint) {
+            mRtCondition.wait(mRLock);
+        }
+    }
+    mRHwc.hasHwcComposition(0);
+    gFlinger->repaintEverything();
+    usleep(50000);
     return true;
 }
 
