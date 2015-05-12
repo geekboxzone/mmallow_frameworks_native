@@ -870,8 +870,8 @@ int Surface::setScalingMode(int mode)
     Mutex::Autolock lock(mMutex);
     if(300==mode || 301==mode || 302==mode) {
 		if(300==mode)   mScalingMode &= ~0x300;
-        if(301==mode)   mScalingMode |= 0x100;
-		if(302==mode)   mScalingMode |= 0x200;
+        if(301==mode)   {mScalingMode &= ~0x300;mScalingMode |= 0x100;}
+		if(302==mode)   {mScalingMode &= ~0x300;mScalingMode |= 0x200;}
     } else {
         mScalingMode &= ~0xff;
         mScalingMode |= mode;
