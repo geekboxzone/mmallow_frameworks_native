@@ -56,7 +56,8 @@ static int32_t createProcessUniqueId() {
 
 ConsumerBase::ConsumerBase(const sp<IGraphicBufferConsumer>& bufferQueue, bool controlledByApp) :
         mAbandoned(false),
-        mConsumer(bufferQueue) {
+        mConsumer(bufferQueue),
+        mAlreadyStereo(0) {
     // Choose a name using the PID and a process-unique ID.
     mName = String8::format("unnamed-%d-%d", getpid(), createProcessUniqueId());
 
