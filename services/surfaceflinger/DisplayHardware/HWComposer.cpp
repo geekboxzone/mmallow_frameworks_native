@@ -322,8 +322,11 @@ void HWComposer::hotplug(int disp, int connected) {
                 disp, connected);
         return;
     }
-    queryDisplayProperties(disp);
-    // Do not teardown or recreate the primary display
+    status_t err = queryDisplayProperties(disp);
+    if(err == NO_INIT && 1 == disp){
+        return;
+    }
+	// Do not teardown or recreate the primary display
     if (disp != HWC_DISPLAY_PRIMARY) {
         mEventHandler.onHotplugReceived(disp, bool(connected));
     }
@@ -410,7 +413,22 @@ status_t HWComposer::queryDisplayProperties(int disp) {
             config.xdpi = dpi;
             config.ydpi = dpi;
         }
-
+        {
+            int count = 0;
+            while(1 == disp && mDisplayData[disp].configs.size()){
+                usleep(5000);
+                count ++;
+                if(200==count){
+                    /*Of course,this cannot be happened:1s*/
+                    ALOGW("hotplug remove device,wait timeout");
+                    property_set("sys.hwc.htg","false");
+                    return NO_INIT;
+                }
+            }
+            if(1 == disp){
+                property_set("sys.hwc.htg","true");
+            }
+        }
         mDisplayData[disp].configs.push_back(config);
     }
 
