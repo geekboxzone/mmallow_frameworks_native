@@ -922,9 +922,10 @@ status_t HWComposer::commit() {
 
 status_t HWComposer::videoCopyBit(hwc_layer_1_t* hwcLayer,int flag)
 {
-    int err;
-    if(mHwc->rkCopybit)
+    int err = -1;
+    if(mHwc->rkCopybit) {
         err = mHwc->rkCopybit(mHwc, hwcLayer->handle, hwcLayer->handle, flag);
+    }
     return (status_t)err;
 }
 status_t HWComposer::setPowerMode(int disp, int mode) {
