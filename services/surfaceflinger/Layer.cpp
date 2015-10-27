@@ -647,7 +647,7 @@ void Layer::setAcquireFence(const sp<const DisplayDevice>& /* hw */,
     layer.setAcquireFenceFd(fenceFd);
 }
 
-void Layer::setDisplayStereo(const sp<const DisplayDevice>& hw,
+void Layer::setDisplayStereo(const sp<const DisplayDevice>& /* hw */,
         HWComposer::HWCLayerInterface& layer) {
     displayStereo = layer.getDisplayStereo();
 }
