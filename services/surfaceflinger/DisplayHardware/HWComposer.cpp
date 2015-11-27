@@ -1024,10 +1024,10 @@ bool HWComposer::supportsFramebufferTarget() const {
 
 int HWComposer::fbPost(int32_t id,
         const sp<Fence>& acquireFence, const sp<GraphicBuffer>& buffer) {
-    bool fbcmp = mFlinger->mUseLcdcComposer ? !hasGlesComposition(id):true;    
+    //bool fbcmp = mFlinger->mUseLcdcComposer ? !hasGlesComposition(id):true;    
     if (mHwc && hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_1)
         #ifndef USE_PREPARE_FENCE
-        && fbcmp
+        //&& fbcmp
         #endif
        ) {
         return setFramebufferTarget(id, acquireFence, buffer);
