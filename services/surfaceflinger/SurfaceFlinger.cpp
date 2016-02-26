@@ -451,6 +451,7 @@ private:
 };
 
 void SurfaceFlinger::init() {
+    ALOGI(RK_GRAPHICS_VER);
     ALOGI(  "SurfaceFlinger's main thread ready to run. "
             "Initializing graphics H/W...");
 
@@ -527,7 +528,6 @@ void SurfaceFlinger::init() {
     if (mHwc->initCheck() != NO_ERROR) {
         mPrimaryDispSync.setPeriod(16666667);
     }
-
     // initialize our drawing state
     mDrawingState = mCurrentState;
 
@@ -2089,12 +2089,16 @@ bool SurfaceFlinger::doComposeSurfaces(const sp<const DisplayDevice>& hw, const 
         const bool haveBlit = hwc.hasBlitComposition(id);
         const bool haveLcdc = hwc.hasLcdComposition(id);
 
-		bool isMixNeedClear = false; 
+        static int bootcnt = 0;
+        bool isMixNeedClear = false;
         if	(id <= 1 && cur != end) {
-             isMixNeedClear = cur->getCompositionType() == HWC_MIX_V2;
-		}
-        if (hasHwcComposition || haveBlit || haveLcdc || isMixNeedClear)
-        {
+            isMixNeedClear = cur->getCompositionType() == HWC_MIX_V2;
+        }
+
+        if(bootcnt < 4) {
+            bootcnt ++;
+            // do nothing for kernel logo to android logo
+        } else if (hasHwcComposition || haveBlit || haveLcdc || isMixNeedClear) {
             // when using overlays, we assume a fully transparent framebuffer
             // NOTE: we could reduce how much we need to clear, for instance
             // remove where there are opaque FB layers. however, on some

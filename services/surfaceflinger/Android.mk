@@ -140,6 +140,9 @@ LOCAL_SHARED_LIBRARIES := \
     libgui \
     libpowermanager
 
+MAJOR_VERSION := "RK_GRAPHICS_VER=commit-id:$(shell cd $(LOCAL_PATH) && git log  -1 --oneline | awk '{print $1}')"
+LOCAL_CFLAGS += -DRK_GRAPHICS_VER=\"$(MAJOR_VERSION)\"
+
 LOCAL_MODULE := libsurfaceflinger
 
 LOCAL_CFLAGS += -Wall -Werror -Wunused -Wunreachable-code
