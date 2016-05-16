@@ -82,6 +82,8 @@ EGL_ENTRY(EGLClientBuffer, eglGetRenderBufferANDROID, EGLDisplay, EGLSurface)
 EGL_ENTRY(EGLint, eglDupNativeFenceFDANDROID, EGLDisplay, EGLSyncKHR)
 
 EGL_ENTRY(EGLBoolean, eglRenderBufferModifiedANDROID, EGLDisplay, EGLSurface)
+EGL_ENTRY(EGLint, egl_GVR_FrontBuffer, EGLSurface)
+
 /* NVIDIA extensions */
 
 EGL_ENTRY(EGLuint64NV, eglGetSystemTimeFrequencyNV, void)

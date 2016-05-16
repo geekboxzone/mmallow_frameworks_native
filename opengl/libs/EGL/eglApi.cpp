@@ -148,6 +148,9 @@ static const extention_map_t sExtensionMap[] = {
             (__eglMustCastToProperFunctionPointerType)&eglGetRenderBufferANDROID }, 
     { "eglRenderBufferModifiedANDROID",
             (__eglMustCastToProperFunctionPointerType)&eglRenderBufferModifiedANDROID },
+    { "egl_GVR_FrontBuffer",
+            (__eglMustCastToProperFunctionPointerType)&egl_GVR_FrontBuffer },
+            
     { "eglSetImplementationAndroid",
             (__eglMustCastToProperFunctionPointerType)&eglSetImplementationAndroid },
     { "eglClientWaitSyncKHR",
@@ -1819,6 +1822,15 @@ EGLBoolean eglRenderBufferModifiedANDROID(EGLDisplay dpy, EGLSurface draw){
 #endif
     return EGL_TRUE;
 }
+EGLint egl_GVR_FrontBuffer(EGLSurface draw){
+    clearError();
+    egl_surface_t const * const s = get_surface(draw);
+    if (s->cnx->egl.egl_GVR_FrontBuffer) {
+            return s->cnx->egl.egl_GVR_FrontBuffer(s->surface);
+    }
+    return EGL_TRUE;
+}
+
 void eglSetImplementationAndroid(EGLBoolean impl)
 {
     impl = impl;
