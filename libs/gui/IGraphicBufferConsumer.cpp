@@ -315,7 +315,7 @@ status_t BnGraphicBufferConsumer::onTransact(
             CHECK_INTERFACE(IGraphicBufferConsumer, data, reply);
             sp<GraphicBuffer> buffer = new GraphicBuffer();
             data.read(*buffer.get());
-            int slot;
+            int slot = -1;
             int result = attachBuffer(&slot, buffer);
             reply->writeInt32(slot);
             reply->writeInt32(result);
@@ -349,7 +349,7 @@ status_t BnGraphicBufferConsumer::onTransact(
         }
         case GET_RELEASED_BUFFERS: {
             CHECK_INTERFACE(IGraphicBufferConsumer, data, reply);
-            uint64_t slotMask;
+            uint64_t slotMask = 0;
             status_t result = getReleasedBuffers(&slotMask);
             reply->writeInt64(static_cast<int64_t>(slotMask));
             reply->writeInt32(result);
