@@ -197,8 +197,6 @@ HWComposer::HWComposer(
         // we don't have VSYNC support, we need to fake it
         mVSyncThread = new VSyncThread(*this);
     }
-
-    mRepaintThread  = new RepaintThread(*this);
 }
 
 HWComposer::~HWComposer() {
@@ -207,9 +205,6 @@ HWComposer::~HWComposer() {
     }
     if (mVSyncThread != NULL) {
         mVSyncThread->requestExitAndWait();
-    }
-    if (mRepaintThread != NULL) {
-        mRepaintThread->requestExitAndWait();
     }
     if (mHwc) {
         hwc_close_1(mHwc);
@@ -683,16 +678,6 @@ status_t HWComposer::setFramebufferTarget(int32_t id,
     return NO_ERROR;
 }
 
-bool gTimeIsUp = false;
-sp<SurfaceFlinger> gFlinger = NULL;
-void timer_handler(int sig) {
-    if(sig == SIGALRM) {
-        const HWComposer& hwc = gFlinger->getHwComposer();
-        hwc.mRepaintThread->setRepaint(true);
-        gTimeIsUp = true;
-        ALOGV("new:time up, send a refresh msg!");
-    }
-}
 status_t HWComposer::prepare() {
     Mutex::Autolock _l(mDisplayLock);
     for (size_t i=0 ; i<mNumDisplays ; i++) {
@@ -727,67 +712,7 @@ status_t HWComposer::prepare() {
 
     int err = mHwc->prepare(mHwc, mNumDisplays, mLists);
     ALOGE_IF(err, "HWComposer: prepare failed (%s)", strerror(-err));
-#if (defined USE_LCDC_COMPOSER) || (defined USE_X86)
-    if(true) 
-#else
-    if(mFlinger->mUseLcdcComposer)
-#endif
-    {
-        DisplayData& disp(mDisplayData[0]);
-        if (disp.list) {
-            bool NeedRepaint = false;
-            unsigned int TotalSize = 0;
-            const DisplayConfig& currentConfig = disp.configs[disp.currentConfig];
-            struct itimerval tv = {{0,0},{0,0}};
 
-            if (gFlinger != mFlinger) {
-                gFlinger = mFlinger;
-                signal(SIGALRM, timer_handler);
-            }
-            for (size_t i=0 ; i<disp.list->numHwLayers ; i++) {
-                hwc_layer_1_t& l = disp.list->hwLayers[i];
-                hwc_rect_t const * rt = l.visibleRegionScreen.rects;
-				if (rt == NULL)
-				{
-				  return 0;
-				}
-                TotalSize += (rt->right - rt->left) * (rt->bottom - rt->top);
-                if ( l.compositionType == HWC_OVERLAY ||
-                     l.compositionType == HWC_LCDC ||
-                     l.bufferCount > 1)
-                {
-                    NeedRepaint = true;
-                }
-            }
-            if (NeedRepaint) {
-                if(TotalSize < ((currentConfig.width * currentConfig.height * 5)/4)) {
-                    NeedRepaint = false;
-                }
-            }
-            if (NeedRepaint) {
-                if (gTimeIsUp) {
-                    gTimeIsUp = false;
-                    mRepaintThread->setRepaint(false);
-                    ALOGV("close timer & go gpu composer!");
-                    tv.it_value.tv_usec = 0;
-                    setitimer(ITIMER_REAL, &tv, NULL);
-                    hwc_layer_1_t& l = disp.list->hwLayers[0];
-                    l.flags |= HWC_SKIP_LAYER;
-                    mHwc->prepare(mHwc, mNumDisplays, mLists);
-                    l.flags &= ~HWC_SKIP_LAYER;
-                } else {
-                    tv.it_value.tv_usec = 500*1000;
-                    tv.it_value.tv_sec = 2;
-                    setitimer(ITIMER_REAL, &tv, NULL);
-                    ALOGV("reset timer!");
-                }
-            } else {
-                tv.it_value.tv_usec = 0;
-                setitimer(ITIMER_REAL, &tv, NULL);
-                ALOGV("close timer!");
-            }
-        }
-    }
     if (err == NO_ERROR) {
         // here we're just making sure that "skip" layers are set
         // to HWC_FRAMEBUFFER and we're also counting how many layers
@@ -1530,36 +1455,6 @@ bool HWComposer::VSyncThread::threadLoop() {
         mHwc.mEventHandler.onVSyncReceived(0, next_vsync);
     }
 
-    return true;
-}
-
-void HWComposer::RepaintThread::onFirstRef() {
-    run("RepaintThread", PRIORITY_URGENT_DISPLAY + PRIORITY_MORE_FAVORABLE);
-}
-
-HWComposer::RepaintThread::RepaintThread(HWComposer& hwc)
-    : mRHwc(hwc), mRepaint(false)
-{
-}
-
-void HWComposer::RepaintThread::setRepaint(bool isRep) {
-    Mutex::Autolock _l(mRLock);
-    if (mRepaint != isRep) {
-        mRepaint = isRep;
-        mRtCondition.signal();
-    }
-}
-
-bool HWComposer::RepaintThread::threadLoop() {
-    { // scope for lock
-        Mutex::Autolock _l(mRLock);
-        while (!mRepaint) {
-            mRtCondition.wait(mRLock);
-        }
-    }
-    mRHwc.hasHwcComposition(0);
-    gFlinger->repaintEverything();
-    usleep(50000);
     return true;
 }
 

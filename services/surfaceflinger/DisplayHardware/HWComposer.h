@@ -310,24 +310,11 @@ public:
         void setEnabled(bool enabled);
     };
 
-    class RepaintThread : public Thread {
-        HWComposer& mRHwc;
-        mutable Mutex mRLock;
-        Condition mRtCondition;
-        bool mRepaint;
-        virtual void onFirstRef();
-        virtual bool threadLoop();   // virtual bool RepaintLoop();
-    public:
-        RepaintThread(HWComposer& hwc);
-        void setRepaint(bool isRep);
-    };
-    
     friend class VSyncThread;
 
     // for debugging ----------------------------------------------------------
     void dump(String8& out) const;
-    sp<RepaintThread>                 mRepaintThread;
-    
+
 private:
     void loadHwcModule();
     int loadFbHalModule();
