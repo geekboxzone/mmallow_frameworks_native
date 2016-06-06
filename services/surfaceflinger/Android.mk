@@ -65,7 +65,9 @@ else
 	ifneq ($(strip $(TARGET_BOARD_PLATFORM)),rk3288)
 		ifneq ($(strip $(TARGET_BOARD_PLATFORM)),rk3368)
 			ifneq ($(strip $(TARGET_BOARD_PLATFORM)),rk3366)
-				LOCAL_CFLAGS += -DUSE_PREPARE_FENCE
+				ifneq ($(strip $(TARGET_BOARD_PLATFORM)),rk3399)
+					LOCAL_CFLAGS += -DUSE_PREPARE_FENCE
+				endif
 			endif
 		endif
 	endif
@@ -78,6 +80,9 @@ ifeq ($(strip $(TARGET_BOARD_PLATFORM)),rk3368)
 endif
 ifeq ($(strip $(TARGET_BOARD_PLATFORM)),rk3366)
 	LOCAL_CFLAGS += -DUSE_LCDC_COMPOSER -DFORCE_SCALE_FULLSCREEN
+endif
+ifeq ($(strip $(TARGET_BOARD_PLATFORM)),rk3399)
+        LOCAL_CFLAGS += -DUSE_LCDC_COMPOSER -DFORCE_SCALE_FULLSCREEN
 endif
 
 ifeq ($(strip $(TARGET_BOARD_PLATFORM)),sofia3gr)
