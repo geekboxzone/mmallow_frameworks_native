@@ -456,10 +456,71 @@ void DisplayDevice::setProjection(int orientation,
     ALOGV(" viewport [%d %d]",mViewport.getWidth(),mViewport.getHeight());
     ALOGV(" frame [%d %d]", frame.getWidth(),frame.getHeight());
     ALOGV(" hw [%d %d]", getWidth(),getHeight());
-    if(strcmp(getDisplayName().string(),"Built-in Screen")
-        && frame.getWidth() > frame.getHeight())
-    {
+
+    bool isVirtualScreen = mType == DisplayDevice::DISPLAY_VIRTUAL;
+    if (isVirtualScreen && frame.getWidth() > frame.getHeight()) {
         frame = Rect(0,0,getWidth(),getHeight());
+        ALOGV("update frame [%d,%d]",frame.getWidth(),frame.getHeight());
+    }
+
+    bool isHdmiScreen = mType == DisplayDevice::DISPLAY_EXTERNAL;
+    if (isHdmiScreen) {
+        int eInitOrientation = 0;
+        bool isSfHwrotated = false;
+        bool isSupportRotation = false;
+        bool isPrimaryExternalSameOrientation = false;
+        Rect newFrame = Rect(0,0,getWidth(),getHeight());
+        Rect newFrameRotated = Rect(0,0,getHeight(),getWidth());
+        float frameRatio = (float)frame.getWidth() / frame.getHeight();
+        char value[PROPERTY_VALUE_MAX];
+        property_get("ro.sf.hwrotation", value, "0");
+        isSfHwrotated = atoi(value) != 0;
+        property_get("ro.same.orientation", value, "false");
+        isPrimaryExternalSameOrientation = !strcmp(value,"true");
+        if(!isSfHwrotated) {
+            property_get("ro.orientation.einit", value, "0");
+            eInitOrientation = atoi(value) / 90;
+            property_get("ro.rotation.external", value, "false");
+            isSupportRotation = !strcmp(value,"true");
+        }
+        if (isSupportRotation && !isPrimaryExternalSameOrientation) {
+            mClientOrientation = orientation;
+            if (eInitOrientation % 2 == 1) {
+                frame = frameRatio > 1.0 ? frame : newFrameRotated;
+                ALOGI("%d,[%d,%d]",__LINE__,frame.getWidth(),frame.getHeight());
+            } else {
+                frame = frameRatio > 1.0 ? newFrame : frame;
+                ALOGI("%d,[%d,%d]",__LINE__,frame.getWidth(),frame.getHeight());
+            }
+        } else if (isSupportRotation) {
+            mClientOrientation = orientation;
+            if (eInitOrientation % 2 == 1) {
+                //frame = frameRatio > 1.0 ? frame : frame;
+                ALOGI("%d,[%d,%d]",__LINE__,frame.getWidth(),frame.getHeight());
+            } else {
+                frame = frameRatio > 1.0 ? newFrame : newFrameRotated;
+                ALOGI("%d,[%d,%d]",__LINE__,frame.getWidth(),frame.getHeight());
+            }
+        } else if (eInitOrientation % 2 != 0) {
+            if (isPrimaryExternalSameOrientation) {
+                //frame = frameRatio > 1.0 ? frame : frame;
+                ALOGI("%d,[%d,%d]",__LINE__,frame.getWidth(),frame.getHeight());
+            } else {
+                frame = frameRatio > 1.0 ? frame : newFrameRotated;
+                ALOGI("%d,[%d,%d]",__LINE__,frame.getWidth(),frame.getHeight());
+            }
+        } else if (eInitOrientation % 2 == 0) {
+            if (isPrimaryExternalSameOrientation) {
+                frame = frameRatio > 1.0 ? newFrame : frame;
+                ALOGI("%d,[%d,%d]",__LINE__,frame.getWidth(),frame.getHeight());
+            } else {
+                frame = frameRatio > 1.0 ? newFrame : frame;
+                ALOGI("%d,[%d,%d]",__LINE__,frame.getWidth(),frame.getHeight());
+            }
+        } else {
+            frame = frameRatio > 1.0 ? newFrame : frame;
+            ALOGI("%d,[%d,%d]",__LINE__,frame.getWidth(),frame.getHeight());
+        }
         ALOGV("update frame [%d,%d]",frame.getWidth(),frame.getHeight());
     }
 #endif
