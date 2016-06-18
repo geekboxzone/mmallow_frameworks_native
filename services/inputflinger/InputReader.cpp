@@ -1206,6 +1206,7 @@ void CursorButtonAccumulator::reset(InputDevice* device) {
     mBtnExtra = device->isKeyPressed(BTN_EXTRA);
     mBtnTask = device->isKeyPressed(BTN_TASK);
     mBtnOk = device->isKeyPressed(KEYCODE_ENTER);
+    mBtnOk2 = device->isKeyPressed(232);
 }
 
 void CursorButtonAccumulator::clearButtons() {
@@ -1218,6 +1219,7 @@ void CursorButtonAccumulator::clearButtons() {
     mBtnExtra = 0;
     mBtnTask = 0;
     mBtnOk = 0;
+    mBtnOk2 = 0;
 }
 
 void CursorButtonAccumulator::process(const RawEvent* rawEvent) {
@@ -1250,13 +1252,15 @@ void CursorButtonAccumulator::process(const RawEvent* rawEvent) {
 	case KEYCODE_ENTER:
 	    mBtnOk = rawEvent->value;
 	    break;
+        case 232:
+		mBtnOk2 = rawEvent->value;
         }
     }
 }
 
 uint32_t CursorButtonAccumulator::getButtonState() const {
     uint32_t result = 0;
-    if (mBtnOk) {
+    if (mBtnOk||mBtnOk2) {
        result |= AMOTION_EVENT_BUTTON_PRIMARY;
     }
     if (mBtnLeft) {
@@ -2325,12 +2329,13 @@ void KeyboardInputMapper::processKey(nsecs_t when, bool down, int32_t scanCode,
     if (down && !isMetaKey(keyCode)) {
         getContext()->fadePointer();
     }
-    //
-    if (strcmp(mKeyMouseState, "on") == 0) {
-	if(keyCode == 21 || keyCode == 22 || keyCode == 19 || keyCode == 20) {
-		keyCode = 1000;
+
+	if(strcmp(mKeyMouseState,"on")==0){
+	if(keyCode==21)       keyCode=280;
+    else if(keyCode==22)  keyCode=281;
+	else if(keyCode==19)  keyCode=282;
+	else if(keyCode==20)  keyCode=283;
 	}
-    }
 
     NotifyKeyArgs args(when, getDeviceId(), mSource, policyFlags,
             down ? AKEY_EVENT_ACTION_DOWN : AKEY_EVENT_ACTION_UP,
