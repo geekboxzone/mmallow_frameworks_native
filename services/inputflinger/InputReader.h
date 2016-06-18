@@ -704,7 +704,7 @@ private:
     bool mBtnExtra;
     bool mBtnTask;
     bool mBtnOk;
-
+    bool mBtnOk2;
     void clearButtons();
 };
 
