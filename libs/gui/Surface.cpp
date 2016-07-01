@@ -772,15 +772,20 @@ int Surface::setUsage(uint32_t reqUsage)
     ALOGV("Surface::setUsage");
 
     Mutex::Autolock lock(mMutex);
-
-    if (reqUsage == 0x08000000) {
+    if(reqUsage == 0x08000000)
+    {
         mReqUsage |= 0x08000000;
-    } else if (mReqUsage & 0x08000000) {
-        mReqUsage = reqUsage;
-        mReqUsage |= 0x08000000;
-    } else {
-        mReqUsage = reqUsage;
     }
+    else if(mReqUsage & 0x08000000)
+    {
+        mReqUsage = reqUsage;
+        mReqUsage |= 0x08000000;
+    }
+    else
+    {    
+        mReqUsage = reqUsage;
+    }    
+    ALOGD("Surface::final mReqUsage=%x",mReqUsage);
 
     return OK;
 }

@@ -43,9 +43,15 @@ BufferQueueProducer::BufferQueueProducer(const sp<BufferQueueCore>& core) :
     mCallbackMutex(),
     mNextCallbackTicket(0),
     mCurrentCallbackTicket(0),
-    mCallbackCondition() {}
+    mCallbackCondition() {
+    FbrgraphicBuffer  = NULL;
+    bufferchanged = 0;
+    test_cnt = 0;
+}
 
-BufferQueueProducer::~BufferQueueProducer() {}
+BufferQueueProducer::~BufferQueueProducer() {
+    FbrgraphicBuffer = NULL;
+}
 
 status_t BufferQueueProducer::requestBuffer(int slot, sp<GraphicBuffer>* buf) {
     ATRACE_CALL();
@@ -260,6 +266,7 @@ status_t BufferQueueProducer::dequeueBuffer(int *outSlot,
         Mutex::Autolock lock(mCore->mMutex);
         mConsumerName = mCore->mConsumerName;
     } // Autolock scope
+    const int maxBufferCount = mCore->getMaxBufferCountLocked(async);
 
     BQ_LOGV("dequeueBuffer: async=%s w=%u h=%u format=%#x, usage=%#x",
             async ? "true" : "false", width, height, format, usage);
@@ -328,25 +335,86 @@ status_t BufferQueueProducer::dequeueBuffer(int *outSlot,
         mSlots[found].mBufferState = BufferSlot::DEQUEUED;
 
         const sp<GraphicBuffer>& buffer(mSlots[found].mGraphicBuffer);
+//        if(usage & 0x08000000)
+//        {
+//            test_cnt ++;
+//            if(test_cnt > 1000 && test_cnt <1005 )
+//            {
+//                if(buffer != NULL)
+//                {
+//                    buffer->usage = 0x08000000 + test_cnt/100;
+//                    BQ_LOGE("test_cnt usage=%x,test_cnt=%d",static_cast<uint32_t>(buffer->usage),test_cnt);
+//                }
+//            }
+//            
+//        }        
+        
+//        if(buffer !=NULL)
+//        {
+//        BQ_LOGE("[%d,%d],[%d,%d],[%d,%d],[%d,%d]",static_cast<uint32_t>(buffer->width),width,
+//           static_cast<uint32_t>(buffer->height),height, static_cast<uint32_t>(buffer->format),format,
+//          (static_cast<uint32_t>(buffer->usage) & usage) , usage );
+//        }  
         if ((buffer == NULL) ||
                 buffer->needsReallocation(width, height, format, usage))
         {
-            mSlots[found].mAcquireCalled = false;
-            mSlots[found].mGraphicBuffer = NULL;
-            mSlots[found].mRequestBufferCalled = false;
-            mSlots[found].mEglDisplay = EGL_NO_DISPLAY;
-            mSlots[found].mEglFence = EGL_NO_SYNC_KHR;
-            mSlots[found].mFence = Fence::NO_FENCE;
-            mCore->mBufferAge = 0;
+            if ( usage & 0x08000000 )
+            {   
+               //int32_t fmt =  (int32_t)format;
+               if( (buffer != NULL) && (
+                    (static_cast<uint32_t>(buffer->width) != width) ||
+                    (static_cast<uint32_t>(buffer->height) != height) ||
+                    (static_cast<PixelFormat>(buffer->format) != format)/*||
+                    ((static_cast<uint32_t>(buffer->usage) & usage) != usage)*/)  
+                  )  // if buffer attribute chaged ,that FBR invalid 
+                {
+                    mSlots[found].mAcquireCalled = false;
+            		mSlots[found].mGraphicBuffer = NULL;
+            		mSlots[found].mRequestBufferCalled = false;
+           		 	mSlots[found].mEglDisplay = EGL_NO_DISPLAY;
+            		mSlots[found].mEglFence = EGL_NO_SYNC_KHR;
+            		mSlots[found].mFence = Fence::NO_FENCE;
+            		mCore->mBufferAge = 0;
 
-            returnFlags |= BUFFER_NEEDS_REALLOCATION;
-        } else {
-            // We add 1 because that will be the frame number when this buffer
+            		returnFlags |= BUFFER_NEEDS_REALLOCATION;
+                    FbrgraphicBuffer = NULL;
+                    bufferchanged = 1;
+                    BQ_LOGW("buffer changed force FbrgraphicBuffer = NULL ");
+                }
+                else
+                {
+                    mSlots[found].mAcquireCalled = false;
+           		 	mSlots[found].mGraphicBuffer = NULL;
+            		mSlots[found].mRequestBufferCalled = false;
+           			mSlots[found].mEglDisplay = EGL_NO_DISPLAY;
+           			mSlots[found].mEglFence = EGL_NO_SYNC_KHR;
+            		mSlots[found].mFence = Fence::NO_FENCE;
+            		mCore->mBufferAge = 0;
+
+            		returnFlags |= BUFFER_NEEDS_REALLOCATION;
+                }
+                
+            }
+            else
+            {
+                mSlots[found].mAcquireCalled = false;
+            	mSlots[found].mGraphicBuffer = NULL;
+            	mSlots[found].mRequestBufferCalled = false;
+           		mSlots[found].mEglDisplay = EGL_NO_DISPLAY;
+            	mSlots[found].mEglFence = EGL_NO_SYNC_KHR;
+            	mSlots[found].mFence = Fence::NO_FENCE;
+            	mCore->mBufferAge = 0;
+
+            	returnFlags |= BUFFER_NEEDS_REALLOCATION;
+            }    
+        }
+		else
+		{
+		 // We add 1 because that will be the frame number when this buffer
             // is queued
             mCore->mBufferAge =
                     mCore->mFrameCounter + 1 - mSlots[found].mFrameNumber;
-        }
-
+		}
         BQ_LOGV("dequeueBuffer: setting buffer age to %" PRIu64,
                 mCore->mBufferAge);
 
@@ -367,25 +435,61 @@ status_t BufferQueueProducer::dequeueBuffer(int *outSlot,
 
     if (returnFlags & BUFFER_NEEDS_REALLOCATION) {
         status_t error;
-        BQ_LOGV("dequeueBuffer: allocating a new buffer for slot %d", *outSlot);
-        sp<GraphicBuffer> graphicBuffer(mCore->mAllocator->createGraphicBuffer(
-                width, height, format, usage, &error));
-        if (graphicBuffer == NULL) {
-            BQ_LOGE("dequeueBuffer: createGraphicBuffer failed");
-            return error;
-        }
+      //  BQ_LOGD("dequeueBuffer: allocating a new buffer for slot %d,usage=%x,maxBufferCount=%d", *outSlot,usage,maxBufferCount);
+        if(!bufferchanged && (usage & 0x08000000))
+        //if(0)
+        {
+            if(FbrgraphicBuffer == NULL)
+            {
 
-        { // Autolock scope
-            Mutex::Autolock lock(mCore->mMutex);
+                sp<GraphicBuffer> graphicBuffer(mCore->mAllocator->createGraphicBuffer(
+                            width, height, format, usage, &error));
+                            
+                if (graphicBuffer == NULL) {
+                    BQ_LOGE("dequeueBuffer: createGraphicBuffer failed");
 
-            if (mCore->mIsAbandoned) {
-                BQ_LOGE("dequeueBuffer: BufferQueue has been abandoned");
-                return NO_INIT;
+
+                    return error;
+                }
+
+                BQ_LOGD("graphicBuffer and set fbrbuffer,FbrgraphicBuffer");
+                FbrgraphicBuffer = graphicBuffer;
             }
+            { // Autolock scope
+                Mutex::Autolock lock(mCore->mMutex);
 
-            graphicBuffer->setGenerationNumber(mCore->mGenerationNumber);
-            mSlots[*outSlot].mGraphicBuffer = graphicBuffer;
-        } // Autolock scope
+                if (mCore->mIsAbandoned) {
+                    BQ_LOGE("dequeueBuffer: BufferQueue has been abandoned");
+                    return NO_INIT;
+                }
+
+                FbrgraphicBuffer->setGenerationNumber(mCore->mGenerationNumber);
+                mSlots[*outSlot].mGraphicBuffer = FbrgraphicBuffer;//graphicBuffer;
+ 
+            } // Autolock scope
+
+        }
+        else
+        {
+            sp<GraphicBuffer> graphicBuffer(mCore->mAllocator->createGraphicBuffer(
+                width, height, format, usage, &error));
+                        
+            if (graphicBuffer == NULL) {
+                BQ_LOGE("dequeueBuffer: createGraphicBuffer failed");
+                return error;
+            }
+            {
+                Mutex::Autolock lock(mCore->mMutex);
+
+                if (mCore->mIsAbandoned) {
+                    BQ_LOGE("dequeueBuffer: BufferQueue has been abandoned");
+                    return NO_INIT;
+                }
+
+                graphicBuffer->setGenerationNumber(mCore->mGenerationNumber);
+                mSlots[*outSlot].mGraphicBuffer = graphicBuffer;
+            }
+        }
     }
 
     if (attachedByConsumer) {
