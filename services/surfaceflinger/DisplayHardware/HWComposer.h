@@ -175,6 +175,9 @@ public:
         virtual void setBlending(uint32_t blending) = 0;
         virtual void setTransform(uint32_t transform) = 0;
         virtual void setFrame(const Rect& frame) = 0;
+#ifdef ROCKCHIP_VIRTUAL_REALITY
+		virtual void getFrame(Rect& frame) = 0;
+#endif
         virtual void setRealTransform(uint32_t realtransform) = 0;
         virtual void setCrop(const FloatRect& crop) = 0;
         virtual void setVisibleRegionScreen(const Region& reg) = 0;

@@ -85,6 +85,10 @@ public:
 
     int32_t displayStereo;
 
+#ifdef ROCKCHIP_VIRTUAL_REALITY
+    mutable int mStereoMode;
+#endif
+
     enum { // flags for doTransaction()
         eDontUpdateGeometryState = 0x00000001,
         eVisibleRegion = 0x00000002,
@@ -206,7 +210,10 @@ protected:
 
 public:
     // -----------------------------------------------------------------------
-
+#ifdef ROCKCHIP_VIRTUAL_REALITY
+    bool isFullScreen(const sp<const DisplayDevice>& hw,
+            HWComposer::HWCLayerInterface& layer);
+#endif
     void setGeometry(const sp<const DisplayDevice>& hw,
             HWComposer::HWCLayerInterface& layer);
     void setPerFrameData(const sp<const DisplayDevice>& hw,
@@ -215,7 +222,10 @@ public:
             HWComposer::HWCLayerInterface& layer);
     void setDisplayStereo(const sp<const DisplayDevice>& hw,
             HWComposer::HWCLayerInterface& layer);
-
+#ifdef ROCKCHIP_VIRTUAL_REALITY
+    int getStereoModeToDraw()const;
+    void setAlreadyStereo(HWComposer::HWCLayerInterface& layer,int flag);
+#endif
     Rect getPosition(const sp<const DisplayDevice>& hw);
 
     /*

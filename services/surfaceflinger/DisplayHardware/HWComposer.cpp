@@ -1133,6 +1133,11 @@ public:
     virtual void setFrame(const Rect& frame) {
         getLayer()->displayFrame = reinterpret_cast<hwc_rect_t const&>(frame);
     }
+#ifdef ROCKCHIP_VIRTUAL_REALITY
+    virtual void getFrame(Rect& frame) {
+        frame = reinterpret_cast<Rect const&>(getLayer()->displayFrame);
+    }
+#endif
     virtual void setCrop(const FloatRect& crop) {
         if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_3)) {
             #if 0

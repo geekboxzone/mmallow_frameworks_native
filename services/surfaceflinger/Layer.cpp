@@ -471,6 +471,25 @@ FloatRect Layer::computeCrop(const sp<const DisplayDevice>& hw) const {
 
 static int fd_dvfs = -1;
 static int dvfs_stat = 0;
+
+#ifdef ROCKCHIP_VIRTUAL_REALITY
+bool Layer::isFullScreen(const sp<const DisplayDevice>& hw,HWComposer::HWCLayerInterface& layer){
+    Rect rect;
+    layer.getFrame(rect);
+
+    float w_ratio = (float)rect.getWidth() / (float)hw->getWidth();
+    float h_ratio = (float)rect.getHeight() / (float)hw->getHeight();
+
+    //ALOGD("ljt %f %f",w_ratio,h_ratio);
+
+
+    if((1.0 == w_ratio) && (h_ratio > 0.8))
+        return true;
+    else
+        return false;
+}
+#endif
+
 void Layer::setGeometry(
     const sp<const DisplayDevice>& hw,
         HWComposer::HWCLayerInterface& layer)
@@ -618,7 +637,23 @@ void Layer::setPerFrameData(const sp<const DisplayDevice>& hw,
         layer.setBuffer(mActiveBuffer);
     }
  	layer.setLayername(getName().string());
-    layer.setAlreadyStereo(mSurfaceFlingerConsumer->getAlreadyStereo());
+
+#ifdef ROCKCHIP_VIRTUAL_REALITY
+    int already3d = 0;
+    if (hw->getWidth() > hw->getHeight())
+        already3d = 1;
+    else
+        already3d = 2;
+
+    if (mSurfaceFlingerConsumer->getAlreadyStereo())
+        setAlreadyStereo(layer,mSurfaceFlingerConsumer->getAlreadyStereo());
+    else if (isFullScreen(hw,layer))
+        setAlreadyStereo(layer,already3d);
+    else
+        setAlreadyStereo(layer,0);
+#else
+	layer.setAlreadyStereo(mSurfaceFlingerConsumer->getAlreadyStereo());
+#endif
 }
 
 void Layer::setAcquireFence(const sp<const DisplayDevice>& /* hw */,
@@ -651,6 +686,17 @@ void Layer::setDisplayStereo(const sp<const DisplayDevice>& /* hw */,
         HWComposer::HWCLayerInterface& layer) {
     displayStereo = layer.getDisplayStereo();
 }
+
+#ifdef ROCKCHIP_VIRTUAL_REALITY
+void Layer::setAlreadyStereo(HWComposer::HWCLayerInterface& layer,int flag) {
+    mStereoMode = flag;
+    return layer.setAlreadyStereo(flag);
+}
+
+int Layer::getStereoModeToDraw()const{
+    return mStereoMode;
+}
+#endif
 
 Rect Layer::getPosition(
     const sp<const DisplayDevice>& hw)
@@ -817,6 +863,86 @@ void setStereoDraw(const sp<const DisplayDevice>& hw, RenderEngine& engine,
     }
 }
 
+#ifdef ROCKCHIP_VIRTUAL_REALITY
+void setStereoDrawVR(const sp<const DisplayDevice>& hw, RenderEngine& engine,
+	Mesh& mMesh, int alreadyStereo, int displayStereo)
+{
+    char value[PROPERTY_VALUE_MAX];
+    property_get("sys.vr.ipd", value, "0.08");
+    float ipd = atof(value);
+
+    Mesh::VertexArray<vec2> position(mMesh.getPositionArray<vec2>());
+
+    if(1==displayStereo && !alreadyStereo) {
+        position[0].x /= 2;
+        position[1].x /= 2;
+        position[2].x /= 2;
+        position[3].x /= 2;
+
+        position[0].y /= 2;
+        position[1].y /= 2;
+        position[2].y /= 2;
+        position[3].y /= 2;
+
+        position[0].x += (ipd*hw->getWidth()/4);
+        position[1].x += (ipd*hw->getWidth()/4);
+        position[2].x += (ipd*hw->getWidth()/4);
+        position[3].x += (ipd*hw->getWidth()/4);
+
+        position[0].y += (hw->getHeight()/4);
+        position[1].y += (hw->getHeight()/4);
+        position[2].y += (hw->getHeight()/4);
+        position[3].y += (hw->getHeight()/4);
+
+        engine.drawMesh(mMesh);
+
+        position[0].x -= (ipd*hw->getWidth()/2);
+        position[1].x -= (ipd*hw->getWidth()/2);
+        position[2].x -= (ipd*hw->getWidth()/2);
+        position[3].x -= (ipd*hw->getWidth()/2);
+
+        position[0].x += (hw->getWidth()/2);
+        position[1].x += (hw->getWidth()/2);
+        position[2].x += (hw->getWidth()/2);
+        position[3].x += (hw->getWidth()/2);
+    }
+
+    if(2==displayStereo && !alreadyStereo) {
+        position[0].y /= 2;
+        position[1].y /= 2;
+        position[2].y /= 2;
+        position[3].y /= 2;
+
+	position[0].x /= 2;
+        position[1].x /= 2;
+        position[2].x /= 2;
+        position[3].x /= 2;
+
+        position[0].y += (ipd*hw->getHeight()/4);
+        position[1].y += (ipd*hw->getHeight()/4);
+        position[2].y += (ipd*hw->getHeight()/4);
+        position[3].y += (ipd*hw->getHeight()/4);
+
+        position[0].x += (hw->getWidth()/4);
+        position[1].x += (hw->getWidth()/4);
+        position[2].x += (hw->getWidth()/4);
+        position[3].x += (hw->getWidth()/4);
+
+        engine.drawMesh(mMesh);
+
+        position[0].y -= (ipd*hw->getHeight()/2);
+        position[1].y -= (ipd*hw->getHeight()/2);
+        position[2].y -= (ipd*hw->getHeight()/2);
+        position[3].y -= (ipd*hw->getHeight()/2);
+
+        position[0].y += (hw->getHeight()/2);
+        position[1].y += (hw->getHeight()/2);
+        position[2].y += (hw->getHeight()/2);
+        position[3].y += (hw->getHeight()/2);
+    }
+}
+#endif
+
 void Layer::clearWithOpenGL(const sp<const DisplayDevice>& hw,
         const Region& /* clip */, float red, float green, float blue,
         float alpha) const
@@ -824,8 +950,13 @@ void Layer::clearWithOpenGL(const sp<const DisplayDevice>& hw,
     RenderEngine& engine(mFlinger->getRenderEngine());
     computeGeometry(hw, mMesh, false);
     engine.setupFillWithColor(red, green, blue, alpha);
+#ifdef ROCKCHIP_VIRTUAL_REALITY
+	setStereoDrawVR(hw, engine, mMesh,
+        /*mSurfaceFlingerConsumer->getAlreadyStereo()*/getStereoModeToDraw(), displayStereo);
+#else
     setStereoDraw(hw, engine, mMesh,
         mSurfaceFlingerConsumer->getAlreadyStereo(), displayStereo);
+#endif
     engine.drawMesh(mMesh);
 }
 
@@ -871,8 +1002,14 @@ void Layer::drawWithOpenGL(const sp<const DisplayDevice>& hw,
 
     RenderEngine& engine(mFlinger->getRenderEngine());
     engine.setupLayerBlending(mPremultipliedAlpha, isOpaque(s), s.alpha);
-    setStereoDraw(hw, engine, mMesh, 
+#ifdef ROCKCHIP_VIRTUAL_REALITY
+	setStereoDrawVR(hw, engine, mMesh,
+        /*mSurfaceFlingerConsumer->getAlreadyStereo()*/getStereoModeToDraw(), displayStereo);
+#else
+    setStereoDraw(hw, engine, mMesh,
         mSurfaceFlingerConsumer->getAlreadyStereo(), displayStereo);
+#endif
+
     engine.drawMesh(mMesh);
     engine.disableBlending();
 }
