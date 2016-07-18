@@ -993,6 +993,8 @@ status_t BufferQueueProducer::disconnect(int api) {
     BQ_LOGV("disconnect(P): api %d", api);
 
     int status = NO_ERROR;
+    FbrgraphicBuffer = NULL;
+    
     sp<IConsumerListener> listener;
     { // Autolock scope
         Mutex::Autolock lock(mCore->mMutex);
