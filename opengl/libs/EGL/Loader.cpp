@@ -14,6 +14,9 @@
  ** limitations under the License.
  */
 
+#define ENABLE_DEBUG_LOG
+#include <log/custom_log.h>
+
 #include <ctype.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -311,12 +314,45 @@ void *Loader::load_driver(const char* kind,
                 }
             }
 
+#ifdef USE_SOC_SPECIFIC_PATH_OF_MALI_SO
+            for (size_t i=0 ; i<NELEM(searchPaths) ; i++) {
+                char socName[PROPERTY_VALUE_MAX];
+                const char* UNKNOW = "unknown";
+                String8 searchPath(searchPaths[i] ); // soc_specific_search_path
+
+                property_get("ro.rk.soc", socName, UNKNOW);
+                LOG_ALWAYS_FATAL_IF(!strcmp(socName, UNKNOW), "couldn't get soc_name.");
+
+                searchPath.appendFormat("/%s", socName);
+                ALOGI("to search mali_so in soc specific path : %s", searchPath.string() );
+
+                if (find(result, pattern, searchPath.string(), false)) {
+                    return result;
+                }
+
+            }
+#endif
+
             // we didn't find the driver. gah.
             result.clear();
             return result;
         }
 
     private:
+        /**
+         * 在目录 'search' 下检索主文件名是(或者包含) 'pattern' 的 .so 文件.
+         *
+         * @result
+         *      用于返回遭到的 .so 的路径.
+         * @exact
+         * @pattern
+         *      若 'exact' 是 true, 目标 .so 的路径必须严格是 'search'/'pattern'.so
+         *      否则, 目标 .so 的路径 包含 'search'/'pattern' 即可.
+         * @search
+         *      将检索的 dir 的路径.
+         * @return
+         *      若找到, 返回 true; 否则, false.
+         */
         static bool find(String8& result,
                 const String8& pattern, const char* const search, bool exact) {
 
