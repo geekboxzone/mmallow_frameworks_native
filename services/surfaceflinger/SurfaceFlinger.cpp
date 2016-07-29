@@ -1192,9 +1192,15 @@ void SurfaceFlinger::rebuildLayerStacks() {
                         Region drawRegion(tr.transform(
                                 layer->visibleNonTransparentRegion));
                         drawRegion.andSelf(bounds);
-                        if (!drawRegion.isEmpty()) {
-                            layersSortedByZ.add(layer);
-                        }
+#ifdef ROCKCHIP_VIRTUAL_REALITY
+			if (!drawRegion.isEmpty() && !strstr(layer->getName().string(),"Sprite")) {
+				layersSortedByZ.add(layer);
+			}
+#else
+			if (!drawRegion.isEmpty()) {
+				layersSortedByZ.add(layer);
+			}
+#endif
                     }
                 }
             }
