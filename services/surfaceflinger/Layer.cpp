@@ -16,6 +16,10 @@
 
 #define ATRACE_TAG ATRACE_TAG_GRAPHICS
 
+// #define LOG_TAG "sf"
+#define ENABLE_DEBUG_LOG
+#include <log/custom_log.h>
+
 #include <stdlib.h>
 #include <stdint.h>
 #include <sys/types.h>
@@ -1728,6 +1732,34 @@ uint32_t Layer::getEffectiveUsage(uint32_t usage) const
         usage |= GraphicBuffer::USAGE_CURSOR;
     }
     usage |= GraphicBuffer::USAGE_HW_COMPOSER;
+
+
+#ifdef USE_AFBC_LAYER
+#define MAGIC_USAGE_TO_USE_AFBC_LAYER     (0x88)
+#if 0
+    char propValue[PROPERTY_VALUE_MAX];
+    property_get("debug.use.afbc", propValue, "0");
+    if ( 1 == atoi(propValue) )
+#endif
+    {
+        const char* NAME_OF_LAYER_TO_USE_AFBC = "SurfaceView";
+        
+        if ( 
+            0 == strcmp(mName.string(), NAME_OF_LAYER_TO_USE_AFBC ) 
+            || 0 == strcmp(mName.string(), "com.vectorunit.redcmgeplaycn/com.vectorunit.redcmgeplaycn.Red")
+            || 0 == strcmp(mName.string(), "Benchmark")
+            || 0 == strcmp(mName.string(), "com.android.settings/com.android.settings.Settings")
+            /*
+            || 0 == strcmp(mName.string(), "com.glbenchmark.glbenchmark27/net.kishonti.benchui.initialization.InitActivity") 
+            */
+        )
+        {
+            usage |= MAGIC_USAGE_TO_USE_AFBC_LAYER;
+            W("use_afbc_layer: force to set usage of layer '%s' to '0x%x'.", mName.string(), usage);
+        }
+    }
+#endif
+
     return usage;
 }
 

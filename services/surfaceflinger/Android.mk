@@ -137,6 +137,10 @@ ifeq ($(strip $(BOARD_ENABLE_WFD_SKIP_FRAME)),true)
 LOCAL_CFLAGS += -DENABLE_WFD_SKIP_FRAME
 endif
 
+ifeq ($(strip $(BOARD_USE_AFBC_LAYER)),true)
+LOCAL_CFLAGS += -DUSE_AFBC_LAYER
+endif
+
 LOCAL_CFLAGS += -fvisibility=hidden -Werror=format
 LOCAL_CFLAGS += -std=c++11
 
