@@ -643,6 +643,7 @@ void Layer::setPerFrameData(const sp<const DisplayDevice>& hw,
  	layer.setLayername(getName().string());
 
 #ifdef ROCKCHIP_VIRTUAL_REALITY
+    /*
     int already3d = 0;
     if (hw->getWidth() > hw->getHeight())
         already3d = 1;
@@ -655,6 +656,7 @@ void Layer::setPerFrameData(const sp<const DisplayDevice>& hw,
         setAlreadyStereo(layer,already3d);
     else
         setAlreadyStereo(layer,0);
+    */
 #else
 	layer.setAlreadyStereo(mSurfaceFlingerConsumer->getAlreadyStereo());
 #endif
@@ -692,6 +694,14 @@ void Layer::setDisplayStereo(const sp<const DisplayDevice>& /* hw */,
 }
 
 #ifdef ROCKCHIP_VIRTUAL_REALITY
+bool Layer::isFBRLayer(){
+    int64_t usage = mActiveBuffer->getUsage();
+    if(usage & 0x08000000)
+        return true;
+    else
+        return false;
+}
+
 void Layer::setAlreadyStereo(HWComposer::HWCLayerInterface& layer,int flag) {
     mStereoMode = flag;
     return layer.setAlreadyStereo(flag);

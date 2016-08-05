@@ -1268,7 +1268,29 @@ void SurfaceFlinger::setUpHWComposer() {
                 }
             }
         }
-
+#ifdef ROCKCHIP_VIRTUAL_REALITY
+        // vr : detect whether contain FBR layer
+        bool hasFBRLayer = false;
+        for (size_t dpy=0 ; dpy<mDisplays.size() ; dpy++) {
+            sp<const DisplayDevice> hw(mDisplays[dpy]);
+            const int32_t id = hw->getHwcDisplayId();
+            if (id >= 0) {
+                const Vector< sp<Layer> >& currentLayers(
+                    hw->getVisibleLayersSortedByZ());
+                const size_t count = currentLayers.size();
+                HWComposer::LayerListIterator cur = hwc.begin(id);
+                const HWComposer::LayerListIterator end = hwc.end(id);
+                for (size_t i=0 ; cur!=end && i<count ; ++i, ++cur) {
+                    const sp<Layer>& layer(currentLayers[i]);
+                    if(layer->isFBRLayer()){
+                        hasFBRLayer = true;
+                        ALOGE("dzx  hdsFBRLayer = true");
+                        break;
+                    }
+                }
+            }
+        }
+#endif        
         // set the per-frame data
         for (size_t dpy=0 ; dpy<mDisplays.size() ; dpy++) {
             sp<const DisplayDevice> hw(mDisplays[dpy]);
@@ -1289,6 +1311,29 @@ void SurfaceFlinger::setUpHWComposer() {
                     layer->setAcquireFence(hw, *cur);
                 #endif
                     layer->setPerFrameData(hw, *cur);
+                #ifdef ROCKCHIP_VIRTUAL_REALITY
+                    // vr : setAlreadyStereo
+                    int already3d = 0;
+                    if(hw->getWidth() > hw->getHeight())
+                        already3d = 1;
+                    else
+                        already3d = 2;
+                    
+                    if(hasFBRLayer){
+                        if(strstr(layer->getName().string(),"_Force_To_Dual") != NULL)
+                            layer->setAlreadyStereo(*cur, 0); // hwc do stereo
+                        else
+                            layer->setAlreadyStereo(*cur, already3d); // hwc not do stereo 
+                    }else{
+                        char value[PROPERTY_VALUE_MAX];
+                        property_get("sys.vr.stereo", value, "1");
+                        int temp = atoi(value);
+                        if(temp==1)
+                            layer->setAlreadyStereo(*cur, 0); // hwc do stereo
+                        else
+                            layer->setAlreadyStereo(*cur, already3d); // hwc not do stereo
+                    }
+                #endif
                 }
             }
         }

@@ -223,6 +223,7 @@ public:
     void setDisplayStereo(const sp<const DisplayDevice>& hw,
             HWComposer::HWCLayerInterface& layer);
 #ifdef ROCKCHIP_VIRTUAL_REALITY
+	bool isFBRLayer();
     int getStereoModeToDraw()const;
     void setAlreadyStereo(HWComposer::HWCLayerInterface& layer,int flag);
 #endif
