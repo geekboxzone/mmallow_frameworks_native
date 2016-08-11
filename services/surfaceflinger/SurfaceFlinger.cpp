@@ -1284,7 +1284,6 @@ void SurfaceFlinger::setUpHWComposer() {
                     const sp<Layer>& layer(currentLayers[i]);
                     if(layer->isFBRLayer()){
                         hasFBRLayer = true;
-                        ALOGE("dzx  hdsFBRLayer = true");
                         break;
                     }
                 }

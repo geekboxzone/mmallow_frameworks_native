@@ -695,8 +695,12 @@ void Layer::setDisplayStereo(const sp<const DisplayDevice>& /* hw */,
 
 #ifdef ROCKCHIP_VIRTUAL_REALITY
 bool Layer::isFBRLayer(){
+    if (!mActiveBuffer)
+	return false;
+
     int64_t usage = mActiveBuffer->getUsage();
-    if(usage & 0x08000000)
+
+    if (usage & 0x08000000)
         return true;
     else
         return false;
