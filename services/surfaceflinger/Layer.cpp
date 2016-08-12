@@ -476,6 +476,51 @@ FloatRect Layer::computeCrop(const sp<const DisplayDevice>& hw) const {
 static int fd_dvfs = -1;
 static int dvfs_stat = 0;
 
+static void optimizationDvfs(int on) {
+    char value[30];
+    int ret = -1;
+
+    if(fd_dvfs < 0) {
+#ifdef SF_RK3288
+        fd_dvfs = open("/sys/devices/ffa30000.gpu/dvfs", O_RDWR, 0);
+#elif SF_RK3399
+        fd_dvfs = open("/sys/devices/platform/ff9a0000.gpu/devfreq/ff9a0000.gpu/governor", O_RDWR, 0);
+#else
+        fd_dvfs = -1;
+#endif
+    }
+
+    if (fd_dvfs < 0) {
+        ALOGV("on=%d,fd_dvfs=%d,%s", on, fd_dvfs, strerror(errno));
+        return;
+    }
+
+#ifdef SF_RK3288
+    if (on) {
+        sprintf(value, "on");
+        ret = write(fd_dvfs, value, sizeof(value));
+    } else {
+        sprintf(value, "off");
+        ret = write(fd_dvfs, value, sizeof(value));
+    }
+#elif SF_RK3399
+    if (on) {
+        sprintf(value, "performance");
+        ret = write(fd_dvfs, value, sizeof(value));
+    } else {
+        sprintf(value, "simple_ondemand");
+        ret = write(fd_dvfs, value, sizeof(value));
+    }
+#else
+    sprintf(value, "nothing");
+#endif
+
+    if (ret == -1)
+        ALOGV("ret=%d,on=%d,fd_dvfs=%d,%s", ret, on, fd_dvfs, strerror(errno));
+
+    return;
+}
+
 #ifdef ROCKCHIP_VIRTUAL_REALITY
 bool Layer::isFullScreen(const sp<const DisplayDevice>& hw,HWComposer::HWCLayerInterface& layer){
     Rect rect;
@@ -589,20 +634,16 @@ void Layer::setGeometry(
     const uint32_t orientation = transform.getOrientation();
     if (orientation & Transform::ROT_INVALID) {
         // we can only handle simple transformation
-        if(fd_dvfs < 0)
-            fd_dvfs = open("/sys/devices/ffa30000.gpu/dvfs", O_RDWR, 0);   
-        if(fd_dvfs > 0 && dvfs_stat == 0)    
-        {         
-            write(fd_dvfs,"off",3);  
+        if (dvfs_stat == 0) {
+            optimizationDvfs(1);
             dvfs_stat = 1;
-        }                
+        }
         layer.setSkip(true);
     } else {
-        if(fd_dvfs > 0 && dvfs_stat == 1)    
-        {                   
-            write(fd_dvfs,"on",2);
-           dvfs_stat = 0;
-        }                
+        if (dvfs_stat == 1) {
+            optimizationDvfs(0);
+            dvfs_stat = 0;
+        }
         uint32_t realtransform = (hw->getTransform(false) * s.transform * bufferOrientation).getOrientation();
         layer.setTransform(orientation);
         if(mFlinger->mUseLcdcComposer )
