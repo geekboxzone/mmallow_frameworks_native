@@ -30,6 +30,7 @@
 #include <utils/RefBase.h>
 #include <utils/Singleton.h>
 #include <utils/String16.h>
+#include <cutils/properties.h>  
 
 #include <binder/AppOpsManager.h>
 #include <binder/BinderService.h>
@@ -77,6 +78,14 @@ SensorService::SensorService()
 void SensorService::onFirstRef()
 {
     ALOGD("nuSensorService starting...");
+    char value[PROPERTY_VALUE_MAX];
+    property_get("ro.target.product", value, "0");    
+    if(!strcmp("box",value))
+    {
+        ALOGD("----box product do not have sensor,skip----");
+        return;
+    }
+
     SensorDevice& dev(SensorDevice::getInstance());
 
     if (dev.initCheck() == NO_ERROR) {
