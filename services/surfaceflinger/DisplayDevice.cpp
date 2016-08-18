@@ -457,6 +457,7 @@ void DisplayDevice::setProjection(int orientation,
     ALOGV(" frame [%d %d]", frame.getWidth(),frame.getHeight());
     ALOGV(" hw [%d %d]", getWidth(),getHeight());
 
+#ifndef ROCKCHIP_VIRTUAL_REALITY
     bool isVirtualScreen = mType == DisplayDevice::DISPLAY_VIRTUAL;
     if (isVirtualScreen && frame.getWidth() > frame.getHeight()) {
         frame = Rect(0,0,getWidth(),getHeight());
@@ -523,6 +524,7 @@ void DisplayDevice::setProjection(int orientation,
         }
         ALOGV("update frame [%d,%d]",frame.getWidth(),frame.getHeight());
     }
+#endif
 #endif
     if (mType == DisplayDevice::DISPLAY_PRIMARY) {
         mClientOrientation = orientation;
